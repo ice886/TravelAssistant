@@ -1,0 +1,62 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-5173}:80"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: 3000
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-5173}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://travel_assistant:change-me@postgres:5432/travel_assistant}
+      XHS_MCP_URL: ${XHS_MCP_URL:-http://xiaohongshu-mcp:18060/mcp}
+      XHS_READONLY_TOOLS: ${XHS_READONLY_TOOLS:-check_login_status,get_login_qrcode,list_feeds,search_feeds,get_feed_detail,user_profile}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai-compatible}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      AMAP_API_KEY: ${AMAP_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    ports:
+      - "${API_PORT:-3000}:3000"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-travel_assistant}
+      POSTGRES_USER: ${POSTGRES_USER:-travel_assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  xiaohongshu-mcp:
+    image: xpzouying/xiaohongshu-mcp:latest
+    platform: linux/amd64
+    profiles:
+      - xhs
+    ports:
+      - "18060:18060"
+    volumes:
+      - ./docker/xhs/data:/app/data
+      - ./docker/xhs/images:/app/images
+
+volumes:
+  postgres-data:
