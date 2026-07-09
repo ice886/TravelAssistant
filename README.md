@@ -20,12 +20,25 @@ npm run dev:frontend
 
 The frontend runs on `http://localhost:5173`, and the backend health endpoint is `http://localhost:3000/api/health`.
 
+The backend expects `DATABASE_URL` to point at Postgres before trip APIs are used. With Docker Compose, the default URL is already wired to the `postgres` service.
+
+## API Surface
+
+- `GET /api/health`: returns API status and safe configuration presence flags.
+- `POST /api/trips`: creates a local draft trip from destination, days or dates, interests, budget, and traveler fields.
+- `GET /api/trips`: lists local trips, newest first.
+- `GET /api/trips/:id`: returns one local trip.
+
+Creating a trip does not require Xiaohongshu MCP. The MCP service is reserved for the later research phase.
+
 ## Docker Compose
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
+
+The Docker builds use the root `.npmrc` retry and timeout settings, plus a BuildKit npm cache, so package installation is more resilient on slow or reset-prone networks.
 
 Compose starts:
 

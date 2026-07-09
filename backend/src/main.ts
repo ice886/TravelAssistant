@@ -16,6 +16,9 @@ async function bootstrap() {
   );
   const config = app.get(AppConfigService);
 
+  app.enableCors({
+    origin: config.webOrigin
+  });
   app.setGlobalPrefix("api");
 
   await app.listen(config.apiPort, "0.0.0.0");

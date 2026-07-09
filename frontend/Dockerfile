@@ -1,12 +1,15 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:20-alpine AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
+COPY .npmrc ./
 COPY tsconfig.base.json ./
 COPY frontend/package.json frontend/package.json
 
-RUN npm ci --workspace frontend
+RUN --mount=type=cache,target=/root/.npm npm ci --workspace frontend
 
 COPY frontend frontend
 RUN npm run build -w frontend

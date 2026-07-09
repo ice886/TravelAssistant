@@ -29,6 +29,10 @@ export class AppConfigService {
     return this.env.WEB_ORIGIN ?? `http://localhost:${this.env.WEB_PORT ?? 5173}`;
   }
 
+  get databaseUrl(): string {
+    return this.env.DATABASE_URL ?? "postgresql://travel_assistant:change-me@localhost:5432/travel_assistant";
+  }
+
   get publicStatus(): PublicConfigStatus {
     return {
       nodeEnv: this.nodeEnv,

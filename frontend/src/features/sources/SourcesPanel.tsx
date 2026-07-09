@@ -1,22 +1,22 @@
 const sourceTypes = [
   {
-    title: "Xiaohongshu notes",
-    body: "Read-only inspiration and real trip evidence."
+    title: "小红书笔记",
+    body: "只读获取真实旅行灵感和经验依据。"
   },
   {
-    title: "Map places",
-    body: "POI, coordinates, addresses, and transit estimates."
+    title: "地图地点",
+    body: "补全 POI、坐标、地址和通勤估算。"
   },
   {
-    title: "Web facts",
-    body: "Opening hours, tickets, reservations, and seasonal notes."
+    title: "网页信息",
+    body: "补充开放时间、门票、预约和季节提醒。"
   }
 ];
 
 export function SourcesPanel() {
   return (
     <section className="panel">
-      <h2>Evidence sources</h2>
+      <h2>来源证据</h2>
       <div className="source-grid">
         {sourceTypes.map((source) => (
           <article className="source-card" key={source.title}>

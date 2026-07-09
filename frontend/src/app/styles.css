@@ -84,6 +84,24 @@ h2 {
   padding: 6px 10px;
 }
 
+.status-strip .status-good {
+  background: #e9f7ed;
+  border-color: #afd7bd;
+  color: #195231;
+}
+
+.status-strip .status-warn {
+  background: #fff7df;
+  border-color: #e5ca72;
+  color: #66500d;
+}
+
+.status-strip .status-bad {
+  background: #fdecec;
+  border-color: #e7aaaa;
+  color: #7c1f1f;
+}
+
 .workspace {
   display: grid;
   gap: 24px;
@@ -135,9 +153,28 @@ button {
   padding: 10px 14px;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .muted {
   color: #68746b;
   font-size: 0.9rem;
+}
+
+.success-text,
+.error-text {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.success-text {
+  color: #1f6f55;
+}
+
+.error-text {
+  color: #9d2f2f;
 }
 
 .timeline,
