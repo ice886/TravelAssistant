@@ -15,6 +15,31 @@ export interface HealthResponse {
   };
 }
 
+export interface XhsStatusResponse {
+  configured: boolean;
+  connectionStatus: "not_configured" | "connected" | "unavailable";
+  loginStatus: "logged_in" | "logged_out" | "unknown";
+  tools: Array<{
+    name: string;
+    allowed: boolean;
+  }>;
+  readonlyTools: string[];
+  blockedTools: string[];
+  errorMessage: string | null;
+}
+
+export interface XhsLoginQrcodeResponse {
+  configured: boolean;
+  connectionStatus: "not_configured" | "connected" | "unavailable";
+  loginStatus: "logged_in" | "logged_out" | "unknown";
+  qrcode: unknown;
+  qrcodeText: string | null;
+  imageMimeType: string | null;
+  imageData: string | null;
+  imageDataUrl: string | null;
+  errorMessage: string | null;
+}
+
 export interface CreateTripPayload {
   destination: string;
   days?: number;
@@ -46,6 +71,26 @@ export async function getHealth(): Promise<HealthResponse> {
 
   if (!response.ok) {
     throw new Error(`健康检查请求失败：${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getXhsStatus(): Promise<XhsStatusResponse> {
+  const response = await fetch(`${apiBaseUrl}/xhs/status`);
+
+  if (!response.ok) {
+    throw new Error(`小红书状态请求失败：${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getXhsLoginQrcode(): Promise<XhsLoginQrcodeResponse> {
+  const response = await fetch(`${apiBaseUrl}/xhs/login-qrcode`);
+
+  if (!response.ok) {
+    throw new Error(`小红书登录二维码请求失败：${response.status}`);
   }
 
   return response.json();

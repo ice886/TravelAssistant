@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "lint": "eslint .",
     "start": "node dist/main.js",
     "start:dev": "tsx watch src/main.ts",
@@ -16,6 +16,7 @@
     "@nestjs/core": "^11.1.27",
     "@nestjs/platform-fastify": "^11.1.27",
     "@types/pg": "^8.20.0",
+    "dotenv": "^17.4.2",
     "pg": "^8.13.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

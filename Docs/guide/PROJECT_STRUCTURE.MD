@@ -2,10 +2,10 @@
 
 ## 1. 当前项目状态
 
-当前仓库已建立最小前后端分离骨架，并完成旅行计划创建的首个业务闭环：
+当前仓库已建立最小前后端分离骨架，并完成旅行计划创建与小红书 MCP 状态检查的首个业务闭环：
 - 根目录使用 npm workspaces 管理 `backend` 和 `frontend`。
-- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database` 和 `trips` 模块。
-- `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`。
+- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety` 和 `mcp` 模块。
+- `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`，状态栏已接入 `/api/health` 与 `/api/xhs/status`。
 - `docker-compose.yml` 描述本地 `web`、`api`、`postgres` 三个默认服务，并通过 `xhs` profile 按需启动 `xiaohongshu-mcp`。
 
 ## 2. 根目录文件
@@ -13,12 +13,15 @@
 - `package.json`：workspace 入口和统一脚本。
 - `tsconfig.base.json`：前后端共享 TypeScript 基础配置。
 - `.env.example`：本地运行所需环境变量占位。
+- `.env.local.example`：本机后端直连 Docker Postgres/MCP 时的覆盖配置模板。
 - `docker-compose.yml`：本地容器编排。
 - `README.md`：运行方式、架构和质量检查说明。
 
 ## 3. 后端结构
 
 `backend/src/main.ts`
+- 启动时先加载仓库根目录或后端目录下的 `.env`，再加载 `.env.local` 并允许覆盖。
+- `.env.local` 用于本机后端开发场景，将 Docker 内部服务名覆盖为 `localhost`。
 - 创建 Nest 应用。
 - 设置 `/api` 全局前缀。
 - 按 `WEB_ORIGIN` 启用 CORS，支持本地 Vite 前端直连后端。
@@ -29,6 +32,7 @@
 - `AppConfigService` 读取环境变量。
 - `publicStatus` 仅返回配置是否存在，不返回密钥明文。
 - `databaseUrl` 从 `DATABASE_URL` 读取，供数据库模块使用。
+- `xhsMcpUrl` 和 `xhsReadonlyTools` 供 MCP 与安全模块使用。
 
 `backend/src/modules/health/`
 - `GET /api/health` 返回服务状态和配置状态。
@@ -45,11 +49,21 @@
 - `GET /api/trips/:id` 查询单个旅行计划。
 - 该模块不依赖 `xiaohongshu-mcp`；小红书能力从后续 research 阶段接入。
 
+`backend/src/modules/safety/`
+- `SafetyService` 维护小红书 MCP 只读白名单和写操作黑名单。
+- 即使环境变量误配置，发布、评论、点赞、收藏和删除 cookies 工具仍会被拒绝。
+
+`backend/src/modules/mcp/`
+- `McpHttpClient` 使用 JSON-RPC over Streamable HTTP 访问 `XHS_MCP_URL`。
+- `McpService` 提供小红书 MCP 连接状态、工具发现、登录状态和二维码获取。
+- `McpController` 暴露 `GET /api/xhs/status`、`GET /api/xhs/login-qrcode` 与 `GET /api/xhs/login-qrcode/image`。
+- MCP 未配置、未启动或调用失败时返回归一化状态，不影响创建旅行计划。
+
 ## 4. 前端结构
 
 `frontend/src/app/`
 - `App.tsx` 是工作台首屏布局。
-- `App.tsx` 调用 `GET /api/health` 展示 API、Postgres 和 XHS 配置状态。
+- `App.tsx` 调用 `GET /api/health` 展示 API 和 Postgres 状态，调用 `GET /api/xhs/status` 展示小红书 MCP 连接和登录状态。
 - `styles.css` 定义全局布局、面板和响应式样式。
 
 `frontend/src/features/`
@@ -61,12 +75,12 @@
 
 `frontend/src/api/client.ts`
 - 封装基础 API 地址。
-- 提供 `getHealth()` 和 `createTrip()`。
+- 提供 `getHealth()`、`getXhsStatus()` 和 `createTrip()`。
 
 ## 5. 后续开发入口
 
 建议下一步优先补充：
-1. 后端 `mcp` 和 `safety` 模块，只读白名单先落地。
-2. `POST /api/trips/:id/research` 的 Agent run 状态模型与执行入口。
+1. `agent_runs`、`research_sources` 等研究阶段数据表和状态模型。
+2. `POST /api/trips/:id/research` 的 Agent run 执行入口。
 3. 前端 Agent run 状态轮询或 SSE。
-4. 小红书登录状态与二维码入口。
+4. 小红书登录二维码入口与暂停/恢复研究流程。

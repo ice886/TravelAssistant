@@ -33,6 +33,30 @@ export class AppConfigService {
     return this.env.DATABASE_URL ?? "postgresql://travel_assistant:change-me@localhost:5432/travel_assistant";
   }
 
+  get xhsMcpUrl(): string | null {
+    return this.env.XHS_MCP_URL?.trim() || null;
+  }
+
+  get xhsReadonlyTools(): string[] {
+    const configuredTools = this.env.XHS_READONLY_TOOLS?.trim();
+
+    if (!configuredTools) {
+      return [
+        "check_login_status",
+        "get_login_qrcode",
+        "list_feeds",
+        "search_feeds",
+        "get_feed_detail",
+        "user_profile"
+      ];
+    }
+
+    return configuredTools
+      .split(",")
+      .map((tool) => tool.trim())
+      .filter(Boolean);
+  }
+
   get publicStatus(): PublicConfigStatus {
     return {
       nodeEnv: this.nodeEnv,

@@ -36,7 +36,11 @@ backend/
   src/
     modules/
       config/
+      database/
       health/
+      mcp/
+      safety/
+      trips/
 
 frontend/
   src/
@@ -50,12 +54,9 @@ frontend/
 ```
 
 后续后端模块应继续放在 `backend/src/modules/` 下，例如：
-- `mcp/`
 - `llm/`
 - `map/`
 - `search/`
-- `safety/`
-- `trips/`
 - `planner/`
 
 ## 4. 安全边界
@@ -63,6 +64,8 @@ frontend/
 - API Key 只通过环境变量进入 `backend`。
 - `frontend` 不保存、不读取、不透传明文密钥。
 - 小红书 MCP 首版只允许只读工具。
+- 后端 `SafetyModule` 对小红书 MCP 工具做白名单判断，默认允许 `check_login_status`、`get_login_qrcode`、`list_feeds`、`search_feeds`、`get_feed_detail`、`user_profile`。
+- 后端明确禁止 `delete_cookies`、发布、评论、点赞和收藏类小红书 MCP 工具，即使被误加入环境变量白名单也不可调用。
 - 健康检查只暴露配置项是否存在，不暴露配置值。
 - 后端首版使用 Fastify adapter，避免引入当前不需要的 Express/Multer 文件上传链。
 - `.env`、MCP cookies、运行缓存和图片目录不提交到仓库。
@@ -81,6 +84,8 @@ frontend/
 - 后端：`${API_PORT:-3000}`
 - Postgres：`5432`
 - MCP：`18060`
+
+本地后端直连 Docker MCP 时，`XHS_MCP_URL` 应使用宿主机可访问地址，例如 `http://localhost:18060/mcp`；Compose 内部服务间访问继续使用 `http://xiaohongshu-mcp:18060/mcp`。
 
 Apple Silicon 说明：
 - `xiaohongshu-mcp` 当前按 `linux/amd64` 运行。

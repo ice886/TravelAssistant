@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getHealth, HealthResponse } from "../api/client";
+import { getHealth, getXhsStatus, HealthResponse, XhsStatusResponse } from "../api/client";
 import { AgentRunPanel } from "../features/agent-run/AgentRunPanel";
 import { ItineraryEditor } from "../features/itinerary-editor/ItineraryEditor";
 import { SourcesPanel } from "../features/sources/SourcesPanel";
@@ -14,9 +14,51 @@ function formatConfigStatus(status: "configured" | "missing" | undefined): strin
   return status === "configured" ? "已配置" : "未配置";
 }
 
+function formatXhsStatus(status: XhsStatusResponse | null, error: string | null): string {
+  if (error) {
+    return "不可用";
+  }
+
+  if (!status) {
+    return "检查中";
+  }
+
+  if (status.connectionStatus === "not_configured") {
+    return "未配置";
+  }
+
+  if (status.connectionStatus === "unavailable") {
+    return "不可用";
+  }
+
+  if (status.loginStatus === "logged_in") {
+    return "已登录";
+  }
+
+  if (status.loginStatus === "logged_out") {
+    return "未登录";
+  }
+
+  return "已连接";
+}
+
+function xhsStatusClass(status: XhsStatusResponse | null, error: string | null): string {
+  if (error || status?.connectionStatus === "unavailable") {
+    return "status-bad";
+  }
+
+  if (status?.connectionStatus === "connected" && status.loginStatus === "logged_in") {
+    return "status-good";
+  }
+
+  return "status-warn";
+}
+
 export function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
+  const [xhsStatus, setXhsStatus] = useState<XhsStatusResponse | null>(null);
+  const [xhsError, setXhsError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -32,6 +74,20 @@ export function App() {
         if (active) {
           setHealth(null);
           setHealthError(error instanceof Error ? error.message : "健康检查请求失败");
+        }
+      });
+
+    getXhsStatus()
+      .then((payload) => {
+        if (active) {
+          setXhsStatus(payload);
+          setXhsError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setXhsStatus(null);
+          setXhsError(error instanceof Error ? error.message : "小红书状态请求失败");
         }
       });
 
@@ -54,10 +110,8 @@ export function App() {
           <span className={health?.config.database === "configured" ? "status-good" : "status-warn"}>
             数据库 {formatConfigStatus(health?.config.database)}
           </span>
-          <span
-            className={health?.config.xiaohongshuMcp === "configured" ? "status-good" : "status-warn"}
-          >
-            小红书 {formatConfigStatus(health?.config.xiaohongshuMcp)}
+          <span className={xhsStatusClass(xhsStatus, xhsError)}>
+            小红书 {formatXhsStatus(xhsStatus, xhsError)}
           </span>
         </div>
       </header>
