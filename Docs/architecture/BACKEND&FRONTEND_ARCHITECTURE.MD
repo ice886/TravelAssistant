@@ -39,6 +39,7 @@ backend/
       database/
       health/
       mcp/
+      providers/
       safety/
       trips/
 
@@ -54,15 +55,20 @@ frontend/
 ```
 
 后续后端模块应继续放在 `backend/src/modules/` 下，例如：
-- `llm/`
-- `map/`
-- `search/`
 - `planner/`
+
+Provider 抽象统一放在 `backend/src/modules/providers/`：
+- `AmapProviderService`：封装高德地点搜索、地理编码和路线距离估算。
+- `TavilyProviderService`：封装 Tavily 网页搜索。
+- `LlmProviderService`：封装 OpenAI-compatible chat completion 和 JSON completion。
+- 后续 Agent、research 和 planner 模块只能依赖 provider services 的内部 DTO，不直接耦合第三方原始响应。
 
 ## 4. 安全边界
 
 - API Key 只通过环境变量进入 `backend`。
 - `frontend` 不保存、不读取、不透传明文密钥。
+- 高德、Tavily 和 LLM 只允许由后端 provider services 调用；浏览器不直连第三方 API。
+- Provider 调用失败统一归一化为内部错误，不向前端暴露密钥或完整请求头。
 - 小红书 MCP 首版只允许只读工具。
 - 后端 `SafetyModule` 对小红书 MCP 工具做白名单判断，默认允许 `check_login_status`、`get_login_qrcode`、`list_feeds`、`search_feeds`、`get_feed_detail`、`user_profile`。
 - 后端明确禁止 `delete_cookies`、发布、评论、点赞和收藏类小红书 MCP 工具，即使被误加入环境变量白名单也不可调用。

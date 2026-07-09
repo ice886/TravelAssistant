@@ -8,6 +8,7 @@ TravelAssistant is a local full-stack travel planning workbench. The first versi
 - `backend/`: Nest.js + Fastify + TypeScript API. It owns Agent orchestration, external API access, persistence, and safety boundaries.
 - `postgres`: Local database for trips, sources, itinerary versions, and Agent runs.
 - `xiaohongshu-mcp`: Local MCP service mounted under `docker/xhs/`.
+- External providers are accessed only through backend provider services: Amap for map/place data, Tavily for web search, and an OpenAI-compatible LLM endpoint for reasoning.
 
 ## Local Setup
 
@@ -41,6 +42,16 @@ Then adjust the password in `.env.local` if your local Postgres password differs
 - `GET /api/trips/:id`: returns one local trip.
 
 Creating a trip does not require Xiaohongshu MCP. The MCP service is now checked through the backend status APIs and remains reserved for the later research phase.
+
+## Provider Configuration
+
+The backend owns all third-party API keys. The frontend only receives safe configured/missing flags through `GET /api/health`.
+
+- Amap: `AMAP_API_KEY`, optional `AMAP_BASE_URL`, `AMAP_TIMEOUT_MS`
+- Tavily: `TAVILY_API_KEY`, optional `TAVILY_BASE_URL`, `TAVILY_TIMEOUT_MS`
+- LLM: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, optional `LLM_TIMEOUT_MS`
+
+Provider services live under `backend/src/modules/providers/` and return stable internal DTOs. Later Agent/research modules should depend on those services instead of calling third-party APIs directly.
 
 ## Docker Compose
 

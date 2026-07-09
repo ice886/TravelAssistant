@@ -4,7 +4,7 @@
 
 当前仓库已建立最小前后端分离骨架，并完成旅行计划创建与小红书 MCP 状态检查的首个业务闭环：
 - 根目录使用 npm workspaces 管理 `backend` 和 `frontend`。
-- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety` 和 `mcp` 模块。
+- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety`、`mcp` 和 `providers` 模块。
 - `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`，状态栏已接入 `/api/health` 与 `/api/xhs/status`。
 - `docker-compose.yml` 描述本地 `web`、`api`、`postgres` 三个默认服务，并通过 `xhs` profile 按需启动 `xiaohongshu-mcp`。
 
@@ -59,6 +59,13 @@
 - `McpController` 暴露 `GET /api/xhs/status`、`GET /api/xhs/login-qrcode` 与 `GET /api/xhs/login-qrcode/image`。
 - MCP 未配置、未启动或调用失败时返回归一化状态，不影响创建旅行计划。
 
+`backend/src/modules/providers/`
+- `ProvidersModule` 导出 `AmapProviderService`、`TavilyProviderService` 和 `LlmProviderService`。
+- `AmapProviderService` 支持高德地点搜索、地理编码和步行/驾车路线距离估算。
+- `TavilyProviderService` 支持 Tavily 搜索，并归一化标题、URL、摘要、score 和 answer。
+- `LlmProviderService` 支持 OpenAI-compatible chat completion 和 JSON completion；JSON completion 会要求模型只返回 JSON，并解析失败时抛出 provider 错误。
+- provider services 接收可注入 `fetchFn`，测试中使用 mock，不依赖真实外部服务。
+
 ## 4. 前端结构
 
 `frontend/src/app/`
@@ -81,6 +88,6 @@
 
 建议下一步优先补充：
 1. `agent_runs`、`research_sources` 等研究阶段数据表和状态模型。
-2. `POST /api/trips/:id/research` 的 Agent run 执行入口。
+2. `POST /api/trips/:id/research` 的 Agent run 执行入口，并接入 provider services。
 3. 前端 Agent run 状态轮询或 SSE。
 4. 小红书登录二维码入口与暂停/恢复研究流程。

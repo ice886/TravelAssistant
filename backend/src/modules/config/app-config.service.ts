@@ -13,6 +13,26 @@ export interface PublicConfigStatus {
   tavily: ConfigStatus;
 }
 
+export interface LlmConfig {
+  provider: string;
+  baseUrl: string;
+  apiKey: string | null;
+  model: string | null;
+  timeoutMs: number;
+}
+
+export interface AmapConfig {
+  apiKey: string | null;
+  baseUrl: string;
+  timeoutMs: number;
+}
+
+export interface TavilyConfig {
+  apiKey: string | null;
+  baseUrl: string;
+  timeoutMs: number;
+}
+
 @Injectable()
 export class AppConfigService {
   private readonly env = process.env;
@@ -57,6 +77,32 @@ export class AppConfigService {
       .filter(Boolean);
   }
 
+  get llm(): LlmConfig {
+    return {
+      provider: this.env.LLM_PROVIDER?.trim() || "openai-compatible",
+      baseUrl: withoutTrailingSlash(this.env.LLM_BASE_URL?.trim() || "https://api.openai.com/v1"),
+      apiKey: this.env.LLM_API_KEY?.trim() || null,
+      model: this.env.LLM_MODEL?.trim() || null,
+      timeoutMs: this.positiveNumber("LLM_TIMEOUT_MS", 30000)
+    };
+  }
+
+  get amap(): AmapConfig {
+    return {
+      apiKey: this.env.AMAP_API_KEY?.trim() || null,
+      baseUrl: withoutTrailingSlash(this.env.AMAP_BASE_URL?.trim() || "https://restapi.amap.com/v3"),
+      timeoutMs: this.positiveNumber("AMAP_TIMEOUT_MS", 10000)
+    };
+  }
+
+  get tavily(): TavilyConfig {
+    return {
+      apiKey: this.env.TAVILY_API_KEY?.trim() || null,
+      baseUrl: withoutTrailingSlash(this.env.TAVILY_BASE_URL?.trim() || "https://api.tavily.com"),
+      timeoutMs: this.positiveNumber("TAVILY_TIMEOUT_MS", 15000)
+    };
+  }
+
   get publicStatus(): PublicConfigStatus {
     return {
       nodeEnv: this.nodeEnv,
@@ -73,4 +119,14 @@ export class AppConfigService {
   private statusOf(name: string): ConfigStatus {
     return this.env[name] ? "configured" : "missing";
   }
+
+  private positiveNumber(name: string, fallback: number): number {
+    const value = Number(this.env[name]);
+
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+}
+
+function withoutTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
 }
