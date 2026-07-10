@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { getHealth, getXhsStatus, HealthResponse, XhsStatusResponse } from "../api/client";
+import { getHealth, getXhsStatus, HealthResponse, Trip, XhsStatusResponse } from "../api/client";
 import { AgentRunPanel } from "../features/agent-run/AgentRunPanel";
 import { ItineraryEditor } from "../features/itinerary-editor/ItineraryEditor";
 import { SourcesPanel } from "../features/sources/SourcesPanel";
@@ -59,6 +59,7 @@ export function App() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [xhsStatus, setXhsStatus] = useState<XhsStatusResponse | null>(null);
   const [xhsError, setXhsError] = useState<string | null>(null);
+  const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -118,8 +119,8 @@ export function App() {
 
       <section className="workspace">
         <aside className="sidebar">
-          <TripForm />
-          <AgentRunPanel />
+          <TripForm onTripCreated={setCurrentTrip} />
+          <AgentRunPanel trip={currentTrip} />
         </aside>
         <section className="main-column">
           <SourcesPanel />

@@ -40,6 +40,7 @@ backend/
       health/
       mcp/
       providers/
+      research/
       safety/
       trips/
 
@@ -57,6 +58,11 @@ frontend/
 后续后端模块应继续放在 `backend/src/modules/` 下，例如：
 - `planner/`
 
+Research run 编排放在 `backend/src/modules/research/`：
+- 负责从 trip 创建 Agent research run。
+- 持久化 run 状态、阶段、检查结果和来源聚合。
+- 首版只做 provider 配置与小红书 MCP 登录预检；后续真实来源检索和行程生成继续沿用该 run 状态模型。
+
 Provider 抽象统一放在 `backend/src/modules/providers/`：
 - `AmapProviderService`：封装高德地点搜索、地理编码和路线距离估算。
 - `TavilyProviderService`：封装 Tavily 网页搜索。
@@ -69,6 +75,7 @@ Provider 抽象统一放在 `backend/src/modules/providers/`：
 - `frontend` 不保存、不读取、不透传明文密钥。
 - 高德、Tavily 和 LLM 只允许由后端 provider services 调用；浏览器不直连第三方 API。
 - Provider 调用失败统一归一化为内部错误，不向前端暴露密钥或完整请求头。
+- Research run 对外只暴露安全摘要、状态和来源数量，不暴露 provider 请求头、API Key 或 MCP 原始敏感响应。
 - 小红书 MCP 首版只允许只读工具。
 - 后端 `SafetyModule` 对小红书 MCP 工具做白名单判断，默认允许 `check_login_status`、`get_login_qrcode`、`list_feeds`、`search_feeds`、`get_feed_detail`、`user_profile`。
 - 后端明确禁止 `delete_cookies`、发布、评论、点赞和收藏类小红书 MCP 工具，即使被误加入环境变量白名单也不可调用。

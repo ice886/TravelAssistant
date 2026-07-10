@@ -40,8 +40,10 @@ Then adjust the password in `.env.local` if your local Postgres password differs
 - `POST /api/trips`: creates a local draft trip from destination, days or dates, interests, budget, and traveler fields.
 - `GET /api/trips`: lists local trips, newest first.
 - `GET /api/trips/:id`: returns one local trip.
+- `POST /api/trips/:id/research`: creates an Agent research run and performs safe preflight checks for provider config and Xiaohongshu MCP login.
+- `GET /api/trips/:id/research-runs/latest`: returns the latest Agent research run, including status, stage, checks, and source count.
 
-Creating a trip does not require Xiaohongshu MCP. The MCP service is now checked through the backend status APIs and remains reserved for the later research phase.
+Creating a trip does not require Xiaohongshu MCP. Research runs degrade safely when provider keys are missing or the MCP service is unavailable.
 
 ## Provider Configuration
 

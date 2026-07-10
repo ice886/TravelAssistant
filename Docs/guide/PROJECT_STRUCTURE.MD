@@ -2,10 +2,10 @@
 
 ## 1. 当前项目状态
 
-当前仓库已建立最小前后端分离骨架，并完成旅行计划创建与小红书 MCP 状态检查的首个业务闭环：
+当前仓库已建立最小前后端分离骨架，并完成旅行计划创建、小红书 MCP 状态检查和 research run 预检的首个业务闭环：
 - 根目录使用 npm workspaces 管理 `backend` 和 `frontend`。
-- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety`、`mcp` 和 `providers` 模块。
-- `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`，状态栏已接入 `/api/health` 与 `/api/xhs/status`。
+- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety`、`mcp`、`providers` 和 `research` 模块。
+- `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`，Agent 面板已接入 `POST /api/trips/:id/research`，状态栏已接入 `/api/health` 与 `/api/xhs/status`。
 - `docker-compose.yml` 描述本地 `web`、`api`、`postgres` 三个默认服务，并通过 `xhs` profile 按需启动 `xiaohongshu-mcp`。
 
 ## 2. 根目录文件
@@ -40,7 +40,7 @@
 
 `backend/src/modules/database/`
 - 使用 `pg` 连接 Postgres。
-- 应用启动时确保 `trips` 表存在。
+- 应用启动时确保 `trips`、`agent_runs` 和 `research_sources` 表存在。
 - 对业务模块只暴露参数化 `query()` 方法。
 
 `backend/src/modules/trips/`
@@ -66,6 +66,12 @@
 - `LlmProviderService` 支持 OpenAI-compatible chat completion 和 JSON completion；JSON completion 会要求模型只返回 JSON，并解析失败时抛出 provider 错误。
 - provider services 接收可注入 `fetchFn`，测试中使用 mock，不依赖真实外部服务。
 
+`backend/src/modules/research/`
+- `POST /api/trips/:id/research` 为指定 trip 创建 Agent research run。
+- 首版执行 provider 配置检查和小红书 MCP 登录状态检查，不消耗真实外部搜索或 LLM 调用额度。
+- `GET /api/trips/:id/research-runs/latest` 返回最新 run、阶段、检查结果、错误摘要和来源数量。
+- provider 缺失时 run 进入 `blocked_config`；MCP 未登录或不可用时进入 `waiting_login`；预检通过时进入 `completed`。
+
 ## 4. 前端结构
 
 `frontend/src/app/`
@@ -75,19 +81,19 @@
 
 `frontend/src/features/`
 - `trip-form/`：创建旅行计划表单，提交后调用后端创建 draft trip。
-- `agent-run/`：Agent 阶段进度占位。
+- `agent-run/`：基于当前 trip 启动 research run，展示配置和 MCP 预检状态，并在 running 时轮询最新 run。
 - `sources/`：来源证据区占位。
 - `itinerary-editor/`：行程编辑区占位。
 - 当前前端用户可见文案默认使用中文；API 字段名和后端契约仍保持英文标识。
 
 `frontend/src/api/client.ts`
 - 封装基础 API 地址。
-- 提供 `getHealth()`、`getXhsStatus()` 和 `createTrip()`。
+- 提供 `getHealth()`、`getXhsStatus()`、`createTrip()`、`startResearch()` 和 `getLatestResearchRun()`。
 
 ## 5. 后续开发入口
 
 建议下一步优先补充：
-1. `agent_runs`、`research_sources` 等研究阶段数据表和状态模型。
-2. `POST /api/trips/:id/research` 的 Agent run 执行入口，并接入 provider services。
-3. 前端 Agent run 状态轮询或 SSE。
-4. 小红书登录二维码入口与暂停/恢复研究流程。
+1. 小红书登录二维码入口与 `waiting_login` 状态下的恢复流程。
+2. 在 research run 中接入 Tavily 搜索和小红书只读搜索，落库 `research_sources`。
+3. 使用高德 provider 解析候选地点并形成地点证据。
+4. 使用 LLM JSON completion 汇总来源，生成首版可编辑行程。

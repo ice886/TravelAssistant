@@ -102,6 +102,24 @@ h2 {
   color: #7c1f1f;
 }
 
+.pill.status-good {
+  background: #e9f7ed;
+  border-color: #afd7bd;
+  color: #195231;
+}
+
+.pill.status-warn {
+  background: #fff7df;
+  border-color: #e5ca72;
+  color: #66500d;
+}
+
+.pill.status-bad {
+  background: #fdecec;
+  border-color: #e7aaaa;
+  color: #7c1f1f;
+}
+
 .workspace {
   display: grid;
   gap: 24px;
@@ -120,6 +138,18 @@ h2 {
   border: 1px solid #d7dfd6;
   border-radius: 8px;
   padding: 18px;
+}
+
+.panel-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panel-heading h2 {
+  margin-bottom: 0;
 }
 
 .form-grid {

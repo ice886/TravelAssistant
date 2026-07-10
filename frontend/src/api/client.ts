@@ -66,6 +66,44 @@ export interface Trip {
   updatedAt: string;
 }
 
+export type AgentRunStatus =
+  | "running"
+  | "completed"
+  | "blocked_config"
+  | "waiting_login"
+  | "failed";
+
+export type AgentRunStage =
+  | "created"
+  | "config_check"
+  | "xhs_login"
+  | "source_research"
+  | "completed";
+
+export interface AgentRunCheck {
+  status: "passed" | "missing" | "waiting" | "unavailable" | "skipped";
+  message: string;
+}
+
+export interface AgentRun {
+  id: string;
+  tripId: string;
+  status: AgentRunStatus;
+  stage: AgentRunStage;
+  summary: string | null;
+  errorMessage: string | null;
+  checks: {
+    llm: AgentRunCheck;
+    amap: AgentRunCheck;
+    tavily: AgentRunCheck;
+    xiaohongshu: AgentRunCheck;
+  };
+  sourceCount: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   const response = await fetch(`${apiBaseUrl}/health`);
 
@@ -108,6 +146,30 @@ export async function createTrip(payload: CreateTripPayload): Promise<Trip> {
   if (!response.ok) {
     const message = await readErrorMessage(response);
     throw new Error(message ?? `旅行计划请求失败：${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function startResearch(tripId: string): Promise<AgentRun> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/research`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response);
+    throw new Error(message ?? `研究任务启动失败：${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getLatestResearchRun(tripId: string): Promise<AgentRun> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/research-runs/latest`);
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response);
+    throw new Error(message ?? `研究任务状态请求失败：${response.status}`);
   }
 
   return response.json();

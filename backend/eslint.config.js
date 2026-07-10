@@ -7,6 +7,12 @@ module.exports = [
   ...tseslint.configs.recommended,
   {
     files: ["src/**/*.ts", "test/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname
+      }
+    },
     rules: {
       "@typescript-eslint/no-extraneous-class": "off"
     }

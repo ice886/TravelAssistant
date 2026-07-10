@@ -3,7 +3,11 @@ import { FormEvent, useState } from "react";
 import { createTrip, Trip } from "../../api/client";
 import { budgetOptions, interestOptions, travelerOptions } from "./tripDefaults";
 
-export function TripForm() {
+interface TripFormProps {
+  onTripCreated?: (trip: Trip) => void;
+}
+
+export function TripForm({ onTripCreated }: TripFormProps) {
   const [createdTrip, setCreatedTrip] = useState<Trip | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +36,7 @@ export function TripForm() {
       });
 
       setCreatedTrip(trip);
+      onTripCreated?.(trip);
     } catch (submitError: unknown) {
       setError(submitError instanceof Error ? submitError.message : "创建旅行计划失败");
     } finally {
