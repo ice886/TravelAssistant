@@ -19,6 +19,9 @@ import {
   ResearchSourceRow
 } from "./research.types";
 
+const XHS_SEARCH_MAX_ATTEMPTS = 2;
+const XHS_SEARCH_RETRY_DELAY_MS = 1000;
+
 @Injectable()
 export class ResearchService {
   constructor(
@@ -165,12 +168,28 @@ export class ResearchService {
       ...interests.map((interest) => `${normalizedDestination} ${interest}`)
     ]);
 
+    let lastError: unknown = null;
+
     for (const query of queries) {
-      const result = await this.mcpService.searchXhs(query);
-      const items = extractItems(result);
-      if (items.length > 0) {
-        return items.slice(0, 5);
+      for (let attempt = 1; attempt <= XHS_SEARCH_MAX_ATTEMPTS; attempt += 1) {
+        try {
+          const result = await this.mcpService.searchXhs(query);
+          const items = extractItems(result);
+          if (items.length > 0) {
+            return items.slice(0, 5);
+          }
+        } catch (error) {
+          lastError = error;
+        }
+
+        if (attempt < XHS_SEARCH_MAX_ATTEMPTS) {
+          await delay(XHS_SEARCH_RETRY_DELAY_MS);
+        }
       }
+    }
+
+    if (lastError) {
+      throw lastError;
     }
 
     return [];
@@ -459,6 +478,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function safeError(error: unknown): string {

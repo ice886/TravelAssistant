@@ -169,6 +169,7 @@ describe("ResearchService", () => {
     });
     vi.mocked(mcpService.searchXhs)
       .mockResolvedValueOnce({ feeds: [], count: 0 })
+      .mockResolvedValueOnce({ feeds: [], count: 0 })
       .mockResolvedValueOnce({
         feeds: [
           {
@@ -187,7 +188,8 @@ describe("ResearchService", () => {
 
     expect(run.status).toBe("completed");
     expect(mcpService.searchXhs).toHaveBeenNthCalledWith(1, "杭州");
-    expect(mcpService.searchXhs).toHaveBeenNthCalledWith(2, "杭州 旅行");
+    expect(mcpService.searchXhs).toHaveBeenNthCalledWith(2, "杭州");
+    expect(mcpService.searchXhs).toHaveBeenNthCalledWith(3, "杭州 旅行");
     expect(database.query).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO research_sources"),
       expect.arrayContaining(["xiaohongshu", "大理旅行攻略", "https://www.xiaohongshu.com/explore/note-1"])
