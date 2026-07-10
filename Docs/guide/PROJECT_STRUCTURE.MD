@@ -81,7 +81,7 @@
 
 `frontend/src/features/`
 - `trip-form/`：创建旅行计划表单，提交后调用后端创建 draft trip。
-- `agent-run/`：基于当前 trip 启动 research run，展示配置和 MCP 预检状态，并在 running 时轮询最新 run。
+- `agent-run/`：基于当前 trip 启动 research run，展示配置和 MCP 预检状态，并在 running 时轮询最新 run；进入 `waiting_login` 时可获取/刷新小红书登录二维码，扫码后重新检查并恢复研究预检。
 - `sources/`：来源证据区占位。
 - `itinerary-editor/`：行程编辑区占位。
 - 当前前端用户可见文案默认使用中文；API 字段名和后端契约仍保持英文标识。

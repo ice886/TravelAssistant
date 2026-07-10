@@ -71,6 +71,11 @@
   - 已连接但未登录：`未登录`
   - 已连接但登录态未知：`已连接`
 
+`frontend/src/features/agent-run/AgentRunPanel.tsx`
+- research run 进入 `waiting_login` 时展示登录恢复区域。
+- 支持获取/刷新二维码，并在用户扫码后重新检查 `GET /api/xhs/status`。
+- 检查到已登录后重新启动该 trip 的 research preflight；恢复流程仍只调用只读 MCP 能力。
+
 ## 5. 验证
 
 已通过：

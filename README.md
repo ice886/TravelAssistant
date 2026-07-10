@@ -45,6 +45,8 @@ Then adjust the password in `.env.local` if your local Postgres password differs
 
 Creating a trip does not require Xiaohongshu MCP. Research runs degrade safely when provider keys are missing or the MCP service is unavailable.
 
+When a research run is waiting for Xiaohongshu login, the Agent panel can display or refresh a QR code. After scanning, use “我已扫码，重新检查” to verify the session and resume the research preflight.
+
 ## Provider Configuration
 
 The backend owns all third-party API keys. The frontend only receives safe configured/missing flags through `GET /api/health`.

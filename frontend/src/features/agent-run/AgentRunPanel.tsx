@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 
-import { AgentRun, AgentRunCheck, getLatestResearchRun, startResearch, Trip } from "../../api/client";
+import {
+  AgentRun,
+  AgentRunCheck,
+  getLatestResearchRun,
+  getXhsLoginQrcode,
+  getXhsStatus,
+  startResearch,
+  Trip,
+  XhsLoginQrcodeResponse
+} from "../../api/client";
 
 const steps: Array<{
   key: keyof AgentRun["checks"];
@@ -72,10 +81,14 @@ export function AgentRunPanel({ trip }: AgentRunPanelProps) {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [qrcode, setQrcode] = useState<XhsLoginQrcodeResponse | null>(null);
+  const [isLoadingQrcode, setIsLoadingQrcode] = useState(false);
+  const [isCheckingLogin, setIsCheckingLogin] = useState(false);
 
   useEffect(() => {
     setRun(null);
     setError(null);
+    setQrcode(null);
   }, [trip?.id]);
 
   useEffect(() => {
@@ -117,6 +130,50 @@ export function AgentRunPanel({ trip }: AgentRunPanelProps) {
     }
   }
 
+  async function handleLoadQrcode() {
+    setIsLoadingQrcode(true);
+    setError(null);
+
+    try {
+      setQrcode(await getXhsLoginQrcode());
+    } catch (qrcodeError: unknown) {
+      setError(qrcodeError instanceof Error ? qrcodeError.message : "登录二维码请求失败");
+    } finally {
+      setIsLoadingQrcode(false);
+    }
+  }
+
+  async function handleCheckLogin() {
+    if (!trip) {
+      return;
+    }
+
+    setIsCheckingLogin(true);
+    setError(null);
+
+    try {
+      const status = await getXhsStatus();
+
+      if (status.loginStatus !== "logged_in") {
+        setError(
+          status.errorMessage ??
+            (status.connectionStatus === "unavailable"
+              ? "小红书 MCP 暂不可用，请确认服务已启动。"
+              : "尚未检测到小红书登录，请扫码后重试。")
+        );
+        return;
+      }
+
+      const nextRun = await startResearch(trip.id);
+      setRun(nextRun);
+      setQrcode(null);
+    } catch (checkError: unknown) {
+      setError(checkError instanceof Error ? checkError.message : "登录状态检查失败");
+    } finally {
+      setIsCheckingLogin(false);
+    }
+  }
+
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -130,6 +187,29 @@ export function AgentRunPanel({ trip }: AgentRunPanelProps) {
       {run?.summary ? <p className="success-text">{run.summary}</p> : null}
       {run?.errorMessage ? <p className="error-text">{run.errorMessage}</p> : null}
       {error ? <p className="error-text">{error}</p> : null}
+      {run?.status === "waiting_login" ? (
+        <div className="login-recovery">
+          <div className="login-recovery-heading">
+            <div>
+              <h3>登录小红书后继续</h3>
+              <p className="muted">仅用于读取公开旅行内容，不会执行发布、评论或点赞操作。</p>
+            </div>
+            <button disabled={isLoadingQrcode} type="button" onClick={handleLoadQrcode}>
+              {isLoadingQrcode ? "获取中..." : qrcode ? "刷新二维码" : "显示二维码"}
+            </button>
+          </div>
+          {qrcode?.imageDataUrl ? (
+            <img className="login-qrcode" src={qrcode.imageDataUrl} alt="小红书登录二维码" />
+          ) : null}
+          {qrcode?.loginStatus === "logged_in" ? (
+            <p className="success-text">已检测到登录，可以继续研究。</p>
+          ) : null}
+          {qrcode?.errorMessage ? <p className="error-text">{qrcode.errorMessage}</p> : null}
+          <button disabled={isCheckingLogin} type="button" onClick={handleCheckLogin}>
+            {isCheckingLogin ? "检查中..." : "我已扫码，重新检查"}
+          </button>
+        </div>
+      ) : null}
       <div className="timeline">
         {steps.map((step) => {
           const check = run?.checks[step.key];
