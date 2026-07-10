@@ -22,6 +22,7 @@ const steps: Array<{
 ];
 
 interface AgentRunPanelProps {
+  onXhsStatusChange: (status: Awaited<ReturnType<typeof getXhsStatus>>) => void;
   trip: Trip | null;
 }
 
@@ -77,7 +78,7 @@ function shouldPoll(run: AgentRun | null): boolean {
   return run?.status === "running";
 }
 
-export function AgentRunPanel({ trip }: AgentRunPanelProps) {
+export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -135,7 +136,17 @@ export function AgentRunPanel({ trip }: AgentRunPanelProps) {
     setError(null);
 
     try {
-      setQrcode(await getXhsLoginQrcode());
+      const nextQrcode = await getXhsLoginQrcode();
+      setQrcode(nextQrcode);
+      onXhsStatusChange({
+        configured: nextQrcode.configured,
+        connectionStatus: nextQrcode.connectionStatus,
+        loginStatus: nextQrcode.loginStatus,
+        tools: [],
+        readonlyTools: [],
+        blockedTools: [],
+        errorMessage: nextQrcode.errorMessage
+      });
     } catch (qrcodeError: unknown) {
       setError(qrcodeError instanceof Error ? qrcodeError.message : "登录二维码请求失败");
     } finally {
@@ -153,6 +164,7 @@ export function AgentRunPanel({ trip }: AgentRunPanelProps) {
 
     try {
       const status = await getXhsStatus();
+      onXhsStatusChange(status);
 
       if (status.loginStatus !== "logged_in") {
         setError(

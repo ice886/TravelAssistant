@@ -120,7 +120,13 @@ export function App() {
       <section className="workspace">
         <aside className="sidebar">
           <TripForm onTripCreated={setCurrentTrip} />
-          <AgentRunPanel trip={currentTrip} />
+          <AgentRunPanel
+            onXhsStatusChange={(status) => {
+              setXhsStatus(status);
+              setXhsError(null);
+            }}
+            trip={currentTrip}
+          />
         </aside>
         <section className="main-column">
           <SourcesPanel />
