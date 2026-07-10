@@ -1,91 +1,164 @@
 # TravelAssistant
 
-TravelAssistant is a local full-stack travel planning workbench. The first version uses a React frontend, a Nest.js backend, Postgres, and a local Xiaohongshu MCP service.
+TravelAssistant 是一个本地运行的全栈旅行规划工作台，整合小红书旅行内容、小红书 MCP、高德地图、Tavily 网页搜索和大模型能力，帮助用户从旅行需求生成可研究、可编辑、可追踪的旅行计划。
 
-## Architecture
+## 项目功能
 
-- `frontend/`: React + TypeScript workbench. It only calls this project's backend API.
-- `backend/`: Nest.js + Fastify + TypeScript API. It owns Agent orchestration, external API access, persistence, and safety boundaries.
-- `postgres`: Local database for trips, sources, itinerary versions, and Agent runs.
-- `xiaohongshu-mcp`: Local MCP service mounted under `docker/xhs/`.
-- External providers are accessed only through backend provider services: Amap for map/place data, Tavily for web search, and an OpenAI-compatible LLM endpoint for reasoning.
+当前版本已支持：
 
-## Local Setup
+- 创建和保存旅行计划：目的地、天数或日期、兴趣偏好、预算档位、同行人类型和人数。
+- 小红书只读研究：搜索旅行笔记，读取标题、作者、摘要、笔记 ID、xsec token 和来源链接。
+- 小红书登录恢复：显示登录二维码，扫码后重新检查登录状态。
+- 小红书安全边界：仅允许登录检查、搜索、读取笔记和用户主页，禁止发布、评论、点赞、收藏和删除 Cookie。
+- 研究任务状态：记录配置检查、登录状态、来源采集、失败原因和来源数量。
+- 搜索降级与重试：小红书按目的地、目的地+旅行、目的地+兴趣逐级搜索，每个关键词最多重试一次。
+- 高德地图研究：搜索 POI，补全地点名称、地址、城市和坐标。
+- Tavily 网页研究：补充开放时间、门票、交通和旅行注意事项等信息。
+- 来源证据面板：按 provider 展示小红书、地图和网页来源。
+
+最终行程生成、预算明细、路线编排和行程版本编辑将在后续阶段继续完善。
+
+## 技术架构
+
+- `frontend/`：React + TypeScript 前端工作台，只调用本项目后端 API。
+- `backend/`：Nest.js + Fastify + TypeScript 后端，负责 Agent 编排、外部服务访问、数据持久化和安全边界。
+- `postgres`：保存旅行计划、Agent run 和研究来源。
+- `xiaohongshu-mcp`：本地小红书 MCP 服务，仅作为只读内容数据源。
+- 外部 provider：高德地图、Tavily 和 OpenAI-compatible LLM API。
+
+浏览器前端不会直接访问小红书 MCP、高德、Tavily 或 LLM；所有密钥和外部请求由后端统一管理。
+
+## 首次部署
+
+### 1. 准备环境
+
+建议环境：
+
+- Docker Desktop 或 Docker Engine + Compose
+- Node.js 20 或更高版本
+- npm 10 或更高版本
+
+### 2. 配置环境变量
+
+在项目根目录执行：
 
 ```bash
 cp .env.example .env
+```
+
+至少检查以下配置：
+
+```ini
+POSTGRES_DB=travel_assistant
+POSTGRES_USER=travel_assistant
+POSTGRES_PASSWORD=change-me
+DATABASE_URL=postgresql://travel_assistant:change-me@postgres:5432/travel_assistant
+XHS_MCP_URL=http://xiaohongshu-mcp:18060/mcp
+```
+
+如需启用高德、Tavily 和 LLM 研究，请继续填写：
+
+```ini
+AMAP_API_KEY=你的高德密钥
+TAVILY_API_KEY=你的Tavily密钥
+LLM_API_KEY=你的模型密钥
+LLM_MODEL=你的模型名称
+```
+
+不要把 `.env`、`.env.local` 或任何 API Key 提交到 Git。
+
+### 3. 启动基础设施和应用
+
+首次部署推荐直接启动完整 Compose 服务：
+
+```bash
+docker compose --profile xhs up --build -d
+```
+
+服务地址：
+
+- 前端：http://localhost:5173
+- 后端健康检查：http://localhost:3000/api/health
+- 小红书 MCP：http://localhost:18060/mcp
+
+查看服务状态：
+
+```bash
+docker compose ps
+docker compose logs -f api
+docker compose logs -f xiaohongshu-mcp
+```
+
+### 4. 完成小红书登录
+
+首次使用时打开前端，创建旅行计划并点击“启动研究”。如果小红书未登录：
+
+1. 在 Agent 面板点击“显示二维码”。
+2. 使用小红书 App 扫码登录。
+3. 点击“我已扫码，重新检查”。
+4. 登录成功后重新启动研究。
+
+官方 MCP 的 Cookie 会保存到 `docker/xhs/data/cookies.json`，浏览器缓存和配置也会保存在 `docker/xhs/data/`。该目录已被 Git 忽略，不会提交 Cookie。
+
+### 5. 验证部署
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/xhs/status
+```
+
+健康检查应返回 API 正常、数据库已配置；小红书状态接口应返回 MCP 已连接。登录完成后，`loginStatus` 应为 `logged_in`。
+
+## 本地开发
+
+启动 Postgres 和小红书 MCP：
+
+```bash
+docker compose --profile xhs up -d postgres xiaohongshu-mcp
+```
+
+安装依赖并启动前后端：
+
+```bash
 npm install
 npm run dev:backend
 npm run dev:frontend
 ```
 
-The frontend runs on `http://localhost:5173`, and the backend health endpoint is `http://localhost:3000/api/health`.
-
-The backend expects `DATABASE_URL` to point at Postgres before trip APIs are used. With Docker Compose, the default URL is already wired to the `postgres` service.
-
-For host-machine backend development with Postgres or Xiaohongshu MCP running in Docker, create local overrides:
+本机运行后端时，可复制本地配置覆盖 Docker 服务名：
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Then adjust the password in `.env.local` if your local Postgres password differs from the example. The backend loads `.env` first and `.env.local` second, so `.env.local` can override Docker service names with `localhost`.
+`.env.local` 会在 `.env` 之后加载，因此可以将数据库和 MCP 地址改为：
 
-## API Surface
-
-- `GET /api/health`: returns API status and safe configuration presence flags.
-- `GET /api/xhs/status`: checks Xiaohongshu MCP connectivity, login status, discovered tools, and read-only safety flags.
-- `GET /api/xhs/login-qrcode`: requests the Xiaohongshu MCP login QR code through the backend safety layer.
-- `GET /api/xhs/login-qrcode/image`: returns the Xiaohongshu login QR code as an `image/png` response for direct scanning.
-- `POST /api/trips`: creates a local draft trip from destination, days or dates, interests, budget, and traveler fields.
-- `GET /api/trips`: lists local trips, newest first.
-- `GET /api/trips/:id`: returns one local trip.
-- `POST /api/trips/:id/research`: creates an Agent research run, performs safe preflight checks, and collects Xiaohongshu, Amap, and Tavily sources.
-- `GET /api/trips/:id/research-runs/latest`: returns the latest Agent research run, including status, stage, checks, and source count.
-- `GET /api/trips/:id/research-sources`: returns sources collected by the latest research run.
-
-Creating a trip does not require Xiaohongshu MCP. Research runs degrade safely when provider keys are missing or the MCP service is unavailable.
-
-When a research run is waiting for Xiaohongshu login, the Agent panel can display or refresh a QR code. After scanning, use “我已扫码，重新检查” to verify the session and resume source research.
-
-## Provider Configuration
-
-The backend owns all third-party API keys. The frontend only receives safe configured/missing flags through `GET /api/health`.
-
-- Amap: `AMAP_API_KEY`, optional `AMAP_BASE_URL`, `AMAP_TIMEOUT_MS`
-- Tavily: `TAVILY_API_KEY`, optional `TAVILY_BASE_URL`, `TAVILY_TIMEOUT_MS`
-- LLM: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, optional `LLM_TIMEOUT_MS`
-
-Provider services live under `backend/src/modules/providers/` and return stable internal DTOs. Research source records store bounded summaries and metadata rather than complete third-party payloads.
-
-## Docker Compose
-
-```bash
-cp .env.example .env
-docker compose up --build
+```ini
+DATABASE_URL=postgresql://travel_assistant:password@localhost:5432/travel_assistant
+XHS_MCP_URL=http://localhost:18060/mcp
 ```
 
-The Docker builds use the root `.npmrc` retry and timeout settings, plus a BuildKit npm cache, so package installation is more resilient on slow or reset-prone networks.
-
-Compose starts:
-
-- `web` on `${WEB_PORT:-5173}`
-- `api` on `${API_PORT:-3000}`
-- `postgres` on `5432`
-
-The Xiaohongshu MCP image is optional because it currently requires the `linux/amd64` platform on Apple Silicon:
+如果出现 `EADDRINUSE: address already in use 0.0.0.0:3000`，说明已有后端进程占用了端口，可先检查并停止旧进程：
 
 ```bash
-docker compose --profile xhs up --build
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+kill <进程号>
 ```
 
-That starts `xiaohongshu-mcp` on `18060`.
+## API 接口
 
-The Compose service follows the official MCP container layout: cookies are stored at `docker/xhs/data/cookies.json`, while browser home/cache/config directories are stored under `docker/xhs/data/`. These files are local runtime data and are ignored by Git.
+- `GET /api/health`：返回后端状态和安全的配置存在性标记。
+- `GET /api/xhs/status`：检查小红书 MCP 连接、登录状态和只读安全工具列表。
+- `GET /api/xhs/login-qrcode`：获取小红书登录二维码。
+- `GET /api/xhs/login-qrcode/image`：直接返回二维码图片。
+- `POST /api/trips`：创建旅行计划。
+- `GET /api/trips`：按创建时间倒序列出旅行计划。
+- `GET /api/trips/:id`：获取单个旅行计划。
+- `POST /api/trips/:id/research`：启动研究任务并采集小红书、地图和网页来源。
+- `GET /api/trips/:id/research-runs/latest`：获取最新研究任务状态。
+- `GET /api/trips/:id/research-sources`：获取最新研究任务采集的来源。
 
-When running the backend outside Docker and the MCP container inside Docker, set `XHS_MCP_URL` to a host-reachable URL such as `http://localhost:18060/mcp`.
-
-## Quality Checks
+## 质量检查
 
 ```bash
 npm run lint
@@ -94,8 +167,10 @@ npm run test
 npm run build
 ```
 
-## Safety Notes
+## 安全说明
 
-- Do not commit `.env` or API keys.
-- The browser frontend must not call Xiaohongshu MCP, Amap, Tavily, or LLM APIs directly.
-- Xiaohongshu MCP usage is read-only in the first version. The backend allows only `XHS_READONLY_TOOLS` and explicitly blocks publishing, commenting, liking, favoriting, and cookie deletion tools.
+- 不要提交 `.env`、API Key、账号密码或 Cookie。
+- 小红书 MCP 在当前版本严格保持只读。
+- 前端不直接访问任何第三方服务。
+- 来源只保存受限的标题、摘要、URL 和 metadata，不保存完整第三方原始响应。
+- 小红书搜索失败时会进行关键词降级和请求级重试，并在研究结果中保留可解释的失败信息。
