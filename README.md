@@ -40,12 +40,13 @@ Then adjust the password in `.env.local` if your local Postgres password differs
 - `POST /api/trips`: creates a local draft trip from destination, days or dates, interests, budget, and traveler fields.
 - `GET /api/trips`: lists local trips, newest first.
 - `GET /api/trips/:id`: returns one local trip.
-- `POST /api/trips/:id/research`: creates an Agent research run and performs safe preflight checks for provider config and Xiaohongshu MCP login.
+- `POST /api/trips/:id/research`: creates an Agent research run, performs safe preflight checks, and collects Xiaohongshu, Amap, and Tavily sources.
 - `GET /api/trips/:id/research-runs/latest`: returns the latest Agent research run, including status, stage, checks, and source count.
+- `GET /api/trips/:id/research-sources`: returns sources collected by the latest research run.
 
 Creating a trip does not require Xiaohongshu MCP. Research runs degrade safely when provider keys are missing or the MCP service is unavailable.
 
-When a research run is waiting for Xiaohongshu login, the Agent panel can display or refresh a QR code. After scanning, use “我已扫码，重新检查” to verify the session and resume the research preflight.
+When a research run is waiting for Xiaohongshu login, the Agent panel can display or refresh a QR code. After scanning, use “我已扫码，重新检查” to verify the session and resume source research.
 
 ## Provider Configuration
 
@@ -55,7 +56,7 @@ The backend owns all third-party API keys. The frontend only receives safe confi
 - Tavily: `TAVILY_API_KEY`, optional `TAVILY_BASE_URL`, `TAVILY_TIMEOUT_MS`
 - LLM: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, optional `LLM_TIMEOUT_MS`
 
-Provider services live under `backend/src/modules/providers/` and return stable internal DTOs. Later Agent/research modules should depend on those services instead of calling third-party APIs directly.
+Provider services live under `backend/src/modules/providers/` and return stable internal DTOs. Research source records store bounded summaries and metadata rather than complete third-party payloads.
 
 ## Docker Compose
 
@@ -79,6 +80,8 @@ docker compose --profile xhs up --build
 ```
 
 That starts `xiaohongshu-mcp` on `18060`.
+
+The Compose service follows the official MCP container layout: cookies are stored at `docker/xhs/data/cookies.json`, while browser home/cache/config directories are stored under `docker/xhs/data/`. These files are local runtime data and are ignored by Git.
 
 When running the backend outside Docker and the MCP container inside Docker, set `XHS_MCP_URL` to a host-reachable URL such as `http://localhost:18060/mcp`.
 

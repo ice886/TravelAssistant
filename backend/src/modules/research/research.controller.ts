@@ -15,4 +15,9 @@ export class ResearchController {
   getLatestRun(@Param("tripId") tripId: string) {
     return this.researchService.getLatestRun(tripId);
   }
+
+  @Get("research-sources")
+  getSources(@Param("tripId") tripId: string) {
+    return this.researchService.getSources(tripId);
+  }
 }

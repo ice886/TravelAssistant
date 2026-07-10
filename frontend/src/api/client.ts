@@ -104,6 +104,17 @@ export interface AgentRun {
   completedAt: string | null;
 }
 
+export interface ResearchSource {
+  id: string;
+  runId: string;
+  provider: "xiaohongshu" | "amap" | "tavily";
+  title: string;
+  url: string | null;
+  snippet: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   const response = await fetch(`${apiBaseUrl}/health`);
 
@@ -170,6 +181,17 @@ export async function getLatestResearchRun(tripId: string): Promise<AgentRun> {
   if (!response.ok) {
     const message = await readErrorMessage(response);
     throw new Error(message ?? `研究任务状态请求失败：${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getResearchSources(tripId: string): Promise<ResearchSource[]> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/research-sources`);
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response);
+    throw new Error(message ?? `研究来源请求失败：${response.status}`);
   }
 
   return response.json();

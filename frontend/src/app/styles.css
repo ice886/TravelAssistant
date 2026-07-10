@@ -216,6 +216,29 @@ button:disabled {
   justify-content: space-between;
 }
 
+.source-results {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.source-result {
+  border-top: 1px solid #e0e7df;
+  padding-top: 12px;
+}
+
+.source-result-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.source-result h3 {
+  font-size: 0.95rem;
+  margin: 8px 0 4px;
+}
+
 .login-recovery h3 {
   font-size: 0.95rem;
   margin: 0 0 4px;

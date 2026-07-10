@@ -131,6 +131,22 @@ export class McpService {
     };
   }
 
+  async searchXhs(keyword: string): Promise<unknown> {
+    const client = this.createClient();
+
+    if (!client) {
+      throw new Error("XHS_MCP_URL is not configured.");
+    }
+
+    const decision = this.safety.isXhsToolAllowed("search_feeds");
+    if (!decision.allowed) {
+      throw new Error(decision.reason);
+    }
+
+    await client.initialize();
+    return client.callTool("search_feeds", { keyword });
+  }
+
   private createClient(): McpHttpClient | null {
     if (!this.config.xhsMcpUrl) {
       return null;

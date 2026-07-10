@@ -97,3 +97,6 @@
 2. 在 research run 中接入 Tavily 搜索和小红书只读搜索，落库 `research_sources`。
 3. 使用高德 provider 解析候选地点并形成地点证据。
 4. 使用 LLM JSON completion 汇总来源，生成首版可编辑行程。
+## Research 来源采集
+
+`backend/src/modules/research/` 负责 research run 的预检、来源采集、状态持久化和来源查询。当前采集链路为：小红书只读 MCP `search_feeds`、高德 POI 搜索、Tavily 网页搜索。来源统一写入 `research_sources`，前端 `SourcesPanel` 按当前 trip 每 3 秒刷新一次。

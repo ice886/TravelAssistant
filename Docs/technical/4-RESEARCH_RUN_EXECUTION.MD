@@ -2,10 +2,10 @@
 
 ## 1. 设计目标
 
-本次实现研究阶段的最小 Agent run 闭环：
+本次实现研究阶段的 Agent run 闭环：
 - 用户创建 trip 后，可以从前端启动 research run。
 - 后端持久化 run 状态，并提供最新 run 查询接口。
-- 首版只执行安全预检：provider 配置检查与小红书 MCP 登录状态检查。
+- 先执行 provider 配置和小红书 MCP 登录预检，再采集小红书、高德和 Tavily 来源。
 - 未配置外部 provider 或 MCP 未登录时，run 进入可解释的暂停状态，不触发真实外部检索。
 
 ## 2. 后端模块
@@ -88,6 +88,19 @@
 - 返回该 trip 最新 run。
 - 同时返回 `research_sources` 聚合后的 `sourceCount`。
 - 无 run 时返回 404。
+
+`GET /api/trips/:id/research-sources`
+- 校验 trip 是否存在。
+- 查询该 trip 最新 research run 的来源记录。
+- 返回统一的 `provider`、`title`、`url`、`snippet` 和受限 `metadata` 字段。
+
+## 8. 来源采集与降级
+
+- 小红书使用 `search_feeds` 只读工具，按目的地和兴趣生成单个检索关键词。
+- 高德使用 POI 文本搜索，保存地点名称、地址、城市和坐标。
+- Tavily 使用旅行主题搜索，保存标题、URL、摘要和评分。
+- 单个 provider 失败会记录安全错误摘要并继续采集其他 provider；三类 provider 全部失败时 run 为 `failed`，否则为 `completed` 并提示部分降级。
+- 来源标题限制为 300 字符，摘要限制为 2000 字符，不保存第三方完整原始响应。
 
 ## 6. 前端接入
 

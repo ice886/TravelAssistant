@@ -51,3 +51,27 @@ export interface AgentRunRow {
   updated_at: Date;
   completed_at: Date | null;
 }
+
+export type ResearchSourceProvider = "xiaohongshu" | "amap" | "tavily";
+
+export interface ResearchSource {
+  id: string;
+  runId: string;
+  provider: ResearchSourceProvider;
+  title: string;
+  url: string | null;
+  snippet: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ResearchSourceRow {
+  id: string;
+  run_id: string;
+  provider: ResearchSourceProvider;
+  title: string;
+  url: string | null;
+  snippet: string | null;
+  metadata: Record<string, unknown> | string;
+  created_at: Date;
+}

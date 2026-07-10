@@ -52,8 +52,16 @@ services:
     platform: linux/amd64
     profiles:
       - xhs
+    init: true
+    tty: true
     ports:
       - "18060:18060"
+    environment:
+      ROD_BROWSER_BIN: /usr/local/bin/cloak-chromium
+      COOKIES_PATH: /app/data/cookies.json
+      HOME: /app/data/home
+      XDG_CACHE_HOME: /app/data/cache
+      XDG_CONFIG_HOME: /app/data/config
     volumes:
       - ./docker/xhs/data:/app/data
       - ./docker/xhs/images:/app/images

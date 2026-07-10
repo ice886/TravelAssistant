@@ -134,6 +134,16 @@ function unwrapToolResult(result: unknown): unknown {
     return result;
   }
 
+  if (result.isError === true) {
+    const errorText = result.content
+      .filter(isToolCallContent)
+      .map((item) => item.text)
+      .filter((text): text is string => typeof text === "string" && text.trim().length > 0)
+      .join(" ");
+
+    throw new Error(errorText || "MCP tool call failed.");
+  }
+
   const content = result.content.filter(isToolCallContent);
 
   if (content.length === 0) {

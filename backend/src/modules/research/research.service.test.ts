@@ -60,18 +60,32 @@ function createService({
   const tripsService = {
     getTrip: vi.fn().mockResolvedValue({
       id: "trip-1",
-      destination: "杭州"
+      destination: "杭州",
+      interests: ["美食"]
     })
   } as unknown as TripsService;
   const config = {
     publicStatus
   } as AppConfigService;
   const mcpService = {
-    getXhsStatus: vi.fn().mockResolvedValue(xhsStatus)
+    getXhsStatus: vi.fn().mockResolvedValue(xhsStatus),
+    searchXhs: vi.fn().mockResolvedValue([
+      { title: "小红书攻略", url: "https://xhs.example/note", desc: "旅行经验" }
+    ])
   } as unknown as McpService;
+  const amap = {
+    searchPlaces: vi.fn().mockResolvedValue([
+      { id: "place-1", name: "西湖", address: "杭州西湖", city: "杭州", location: null }
+    ])
+  } as never;
+  const tavily = {
+    search: vi.fn().mockResolvedValue({
+      results: [{ title: "杭州攻略", url: "https://example.com", content: "开放时间", score: 0.9 }]
+    })
+  } as never;
 
   return {
-    service: new ResearchService(database, tripsService, config, mcpService),
+    service: new ResearchService(database, tripsService, config, mcpService, amap, tavily),
     database,
     mcpService
   };
@@ -146,5 +160,37 @@ describe("ResearchService", () => {
     expect(run.stage).toBe("completed");
     expect(run.checks.llm.status).toBe("passed");
     expect(run.checks.xiaohongshu.status).toBe("passed");
+  });
+
+  it("falls back to a broader XHS query and parses noteCard results", async () => {
+    const { service, mcpService, database } = createService({
+      publicStatus: configuredStatus,
+      xhsStatus: loggedInXhsStatus
+    });
+    vi.mocked(mcpService.searchXhs)
+      .mockResolvedValueOnce({ feeds: [], count: 0 })
+      .mockResolvedValueOnce({
+        feeds: [
+          {
+            id: "note-1",
+            xsecToken: "token-1",
+            noteCard: {
+              displayTitle: "大理旅行攻略",
+              desc: "适合第一次去大理",
+              user: { nickname: "旅行作者" }
+            }
+          }
+        ]
+      });
+
+    const run = await service.startResearch("00000000-0000-4000-8000-000000000001");
+
+    expect(run.status).toBe("completed");
+    expect(mcpService.searchXhs).toHaveBeenNthCalledWith(1, "杭州");
+    expect(mcpService.searchXhs).toHaveBeenNthCalledWith(2, "杭州 旅行");
+    expect(database.query).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO research_sources"),
+      expect.arrayContaining(["xiaohongshu", "大理旅行攻略", "https://www.xiaohongshu.com/explore/note-1"])
+    );
   });
 });
