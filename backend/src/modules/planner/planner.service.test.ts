@@ -1,4 +1,3 @@
-import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { DatabaseService } from "../database/database.service";
@@ -24,8 +23,25 @@ describe("validateItinerary", () => {
     expect(validateItinerary(content, new Set(["source-1"]))).toEqual(content);
   });
 
-  it("rejects unknown source references", () => {
-    expect(() => validateItinerary(content, new Set(["source-2"]))).toThrow(BadRequestException);
+  it("removes unknown source references without rejecting the itinerary", () => {
+    const contentWithUnknownSources = {
+      ...content,
+      days: [
+        {
+          ...content.days[0],
+          activities: [
+            {
+              ...content.days[0].activities[0],
+              sourceIds: ["source-1", "unknown-source", "source-1"]
+            }
+          ]
+        }
+      ]
+    };
+
+    const result = validateItinerary(contentWithUnknownSources, new Set(["source-1"]));
+
+    expect(result.days[0].activities[0].sourceIds).toEqual(["source-1"]);
   });
 
   it("rejects incomplete content", () => {
@@ -46,6 +62,15 @@ describe("PlannerService", () => {
     });
     expect(llm.completeJson).toHaveBeenCalledWith(
       expect.objectContaining({ schemaName: "travel_itinerary" })
+    );
+    expect(llm.completeJson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          expect.objectContaining({
+            content: expect.stringContaining('"allowedSourceIds":["source-1"]')
+          })
+        ]
+      })
     );
     expect(database.query).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO itinerary_versions"),

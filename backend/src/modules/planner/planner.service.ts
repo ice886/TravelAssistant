@@ -118,6 +118,7 @@ export class PlannerService {
           role: "user",
           content: JSON.stringify({
             instruction: GENERATION_INSTRUCTION,
+            allowedSourceIds: sources.map((source) => source.id),
             trip,
             sources: sources.map(toPromptSource)
           })

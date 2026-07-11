@@ -52,12 +52,9 @@ function validateActivity(
     value.sourceIds,
     "Itinerary source ids must be strings."
   );
-  const hasUnknownSource =
-    allowedSourceIds && sourceIds.some((sourceId) => !allowedSourceIds.has(sourceId));
-
-  if (hasUnknownSource) {
-    throw new BadRequestException("Itinerary referenced an unknown research source.");
-  }
+  const knownSourceIds = allowedSourceIds
+    ? sourceIds.filter((sourceId) => allowedSourceIds.has(sourceId))
+    : sourceIds;
 
   return {
     time: value.time,
@@ -66,7 +63,7 @@ function validateActivity(
     description: value.description,
     transport: value.transport,
     estimatedCost: value.estimatedCost,
-    sourceIds
+    sourceIds: [...new Set(knownSourceIds)]
   };
 }
 

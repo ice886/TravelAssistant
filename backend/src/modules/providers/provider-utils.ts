@@ -45,7 +45,11 @@ export async function requestJson(
       throw error;
     }
 
-    throw new ProviderError(provider, "request_failed", normalizeErrorMessage(provider, error));
+    throw new ProviderError(
+      provider,
+      "request_failed",
+      normalizeErrorMessage(provider, error, timeoutMs)
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -80,9 +84,13 @@ export function numberValue(value: unknown): number | null {
   return null;
 }
 
-function normalizeErrorMessage(provider: ProviderName, error: unknown): string {
+function normalizeErrorMessage(
+  provider: ProviderName,
+  error: unknown,
+  timeoutMs: number
+): string {
   if (error instanceof Error && error.name === "AbortError") {
-    return `${provider} request timed out.`;
+    return `${provider} request timed out after ${timeoutMs}ms.`;
   }
 
   return error instanceof Error ? error.message : `${provider} request failed.`;

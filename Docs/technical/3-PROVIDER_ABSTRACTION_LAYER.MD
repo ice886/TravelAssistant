@@ -38,7 +38,7 @@ LLM：
 - `LLM_BASE_URL`，默认 `https://api.openai.com/v1`
 - `LLM_API_KEY`
 - `LLM_MODEL`
-- `LLM_TIMEOUT_MS`，默认 `30000`
+- `LLM_TIMEOUT_MS`，默认 `300000`（300 秒）；长行程等结构化生成任务可按模型响应速度继续调大
 
 ## 4. Provider 契约
 

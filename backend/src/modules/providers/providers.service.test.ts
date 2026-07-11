@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AppConfigService } from "../config/app-config.service";
 import { AmapProviderService } from "./amap.service";
 import { LlmProviderService } from "./llm.service";
+import { requestJson } from "./provider-utils";
 import { TavilyProviderService } from "./tavily.service";
 
 function createConfig(overrides: Partial<AppConfigService> = {}): AppConfigService {
@@ -209,6 +210,22 @@ describe("LlmProviderService", () => {
     ).rejects.toMatchObject({
       provider: "llm",
       code: "invalid_response"
+    });
+  });
+});
+
+describe("requestJson", () => {
+  it("includes the configured timeout in abort errors", async () => {
+    const abortError = new Error("aborted");
+    abortError.name = "AbortError";
+    const fetchFn = vi.fn().mockRejectedValue(abortError);
+
+    await expect(
+      requestJson("llm", fetchFn, "https://example.com", {}, 300000)
+    ).rejects.toMatchObject({
+      provider: "llm",
+      code: "request_failed",
+      message: "llm request timed out after 300000ms."
     });
   });
 });

@@ -83,7 +83,7 @@ export class AppConfigService {
       baseUrl: withoutTrailingSlash(this.env.LLM_BASE_URL?.trim() || "https://api.openai.com/v1"),
       apiKey: this.env.LLM_API_KEY?.trim() || null,
       model: this.env.LLM_MODEL?.trim() || null,
-      timeoutMs: this.positiveNumber("LLM_TIMEOUT_MS", 30000)
+      timeoutMs: this.positiveNumber("LLM_TIMEOUT_MS", 300000)
     };
   }
 
