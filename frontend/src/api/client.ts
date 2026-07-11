@@ -115,6 +115,41 @@ export interface ResearchSource {
   createdAt: string;
 }
 
+export interface ItineraryActivity {
+  time: string;
+  title: string;
+  location: string;
+  description: string;
+  transport: string;
+  estimatedCost: number;
+  sourceIds: string[];
+}
+
+export interface ItineraryContent {
+  title: string;
+  summary: string;
+  currency: string;
+  totalEstimatedCost: number;
+  days: Array<{
+    day: number;
+    date: string | null;
+    title: string;
+    activities: ItineraryActivity[];
+    notes: string[];
+  }>;
+  tips: string[];
+}
+
+export interface ItineraryVersion {
+  id: string;
+  tripId: string;
+  researchRunId: string | null;
+  version: number;
+  source: "generated" | "edited";
+  content: ItineraryContent;
+  createdAt: string;
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   const response = await fetch(`${apiBaseUrl}/health`);
 
@@ -194,6 +229,26 @@ export async function getResearchSources(tripId: string): Promise<ResearchSource
     throw new Error(message ?? `研究来源请求失败：${response.status}`);
   }
 
+  return response.json();
+}
+
+export async function generateItinerary(tripId: string): Promise<ItineraryVersion> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/itineraries/generate`, { method: "POST" });
+  if (!response.ok) throw new Error((await readErrorMessage(response)) ?? `行程生成失败：${response.status}`);
+  return response.json();
+}
+
+export async function getLatestItinerary(tripId: string): Promise<ItineraryVersion> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/itineraries/latest`);
+  if (!response.ok) throw new Error((await readErrorMessage(response)) ?? `行程读取失败：${response.status}`);
+  return response.json();
+}
+
+export async function saveItinerary(tripId: string, content: ItineraryContent): Promise<ItineraryVersion> {
+  const response = await fetch(`${apiBaseUrl}/trips/${tripId}/itineraries`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(content)
+  });
+  if (!response.ok) throw new Error((await readErrorMessage(response)) ?? `行程保存失败：${response.status}`);
   return response.json();
 }
 

@@ -130,7 +130,7 @@ export function App() {
         </aside>
         <section className="main-column">
           <SourcesPanel trip={currentTrip} />
-          <ItineraryEditor />
+          <ItineraryEditor trip={currentTrip} />
         </section>
       </section>
     </main>

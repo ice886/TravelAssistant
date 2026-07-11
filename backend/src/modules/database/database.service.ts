@@ -58,6 +58,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         created_at timestamptz NOT NULL DEFAULT now()
       )
     `);
+
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS itinerary_versions (
+        id uuid PRIMARY KEY,
+        trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        research_run_id uuid REFERENCES agent_runs(id) ON DELETE SET NULL,
+        version integer NOT NULL,
+        source text NOT NULL,
+        content jsonb NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (trip_id, version)
+      )
+    `);
   }
 
   async onModuleDestroy(): Promise<void> {

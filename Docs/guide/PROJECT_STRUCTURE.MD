@@ -83,7 +83,7 @@
 - `trip-form/`：创建旅行计划表单，提交后调用后端创建 draft trip。
 - `agent-run/`：基于当前 trip 启动 research run，展示配置和 MCP 预检状态，并在 running 时轮询最新 run；进入 `waiting_login` 时可获取/刷新小红书登录二维码，扫码后重新检查并恢复研究预检。
 - `sources/`：来源证据区占位。
-- `itinerary-editor/`：行程编辑区占位。
+- `itinerary-editor/`：读取或生成最新行程，展示逐日活动，并将编辑结果保存为新版本。
 - 当前前端用户可见文案默认使用中文；API 字段名和后端契约仍保持英文标识。
 
 `frontend/src/api/client.ts`
@@ -96,7 +96,9 @@
 1. 小红书登录二维码入口与 `waiting_login` 状态下的恢复流程。
 2. 在 research run 中接入 Tavily 搜索和小红书只读搜索，落库 `research_sources`。
 3. 使用高德 provider 解析候选地点并形成地点证据。
-4. 使用 LLM JSON completion 汇总来源，生成首版可编辑行程。
+4. 已使用 LLM JSON completion 汇总来源，生成并版本化保存首版可编辑行程。
 ## Research 来源采集
 
 `backend/src/modules/research/` 负责 research run 的预检、来源采集、状态持久化和来源查询。当前采集链路为：小红书只读 MCP `search_feeds`、高德 POI 搜索、Tavily 网页搜索。来源统一写入 `research_sources`，前端 `SourcesPanel` 按当前 trip 每 3 秒刷新一次。
+
+`backend/src/modules/planner/` 读取最新研究来源，通过 LLM JSON completion 生成结构化行程。生成和手动保存均写入 `itinerary_versions` 新版本，前端 `ItineraryEditor` 显示最新版本并支持编辑保存。

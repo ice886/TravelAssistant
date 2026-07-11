@@ -19,7 +19,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -165,12 +166,55 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   border: 1px solid #b8c5b7;
   border-radius: 6px;
   color: #172026;
   min-height: 42px;
   padding: 9px 10px;
+}
+
+textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.button-row,
+.activity-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-button {
+  background: #edf4ed;
+  color: #1f5a46;
+}
+
+.itinerary-content,
+.activity-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.itinerary-content > input {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.activity-editor {
+  border-top: 1px solid #e0e7df;
+  padding-top: 12px;
+}
+
+.activity-editor p {
+  margin-bottom: 0;
+}
+
+.activity-line input {
+  max-width: 90px;
 }
 
 button {

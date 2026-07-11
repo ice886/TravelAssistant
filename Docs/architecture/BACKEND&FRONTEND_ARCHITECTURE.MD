@@ -68,6 +68,7 @@ Provider 抽象统一放在 `backend/src/modules/providers/`：
 - `TavilyProviderService`：封装 Tavily 网页搜索。
 - `LlmProviderService`：封装 OpenAI-compatible chat completion 和 JSON completion。
 - 后续 Agent、research 和 planner 模块只能依赖 provider services 的内部 DTO，不直接耦合第三方原始响应。
+- `planner/` 以最新 research sources 作为证据，通过 LLM provider 生成严格结构化行程；生成与编辑结果以不可变版本保存到 `itinerary_versions`。
 
 ## 4. 安全边界
 
