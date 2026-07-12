@@ -33,4 +33,4 @@
 
 保存编辑内容不会覆盖旧版本，而是创建新的 `edited` 版本。
 
-Research 缓存命中时会为本次 run 物化新的来源 UUID，因此 Planner 仍引用当前 `research_sources.id`，不会复用旧 run 的外键语义。
+Planner 只引用当前 Research run 已物化的 `research_sources.id`；Research run 不复用历史缓存来源。

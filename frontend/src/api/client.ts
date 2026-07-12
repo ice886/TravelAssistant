@@ -104,7 +104,6 @@ export interface ResearchToolCallRecord {
 export interface ResearchAgentProgress {
   currentRound: number;
   maxRounds: number;
-  cacheHit: boolean;
   degraded: boolean;
   degradationReasons: string[];
   toolCalls: ResearchToolCallRecord[];
@@ -307,7 +306,6 @@ function normalizeAgentRun(value: unknown): AgentRun {
     progress: {
       currentRound: nonNegativeInteger(rawProgress.currentRound) ?? 0,
       maxRounds: positiveInteger(rawProgress.maxRounds) ?? 8,
-      cacheHit: rawProgress.cacheHit === true,
       degraded: rawProgress.degraded === true,
       degradationReasons,
       toolCalls

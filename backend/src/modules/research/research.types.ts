@@ -65,11 +65,6 @@ export interface ResearchSource {
   createdAt: string;
 }
 
-export interface ResearchCacheRow {
-  sources: unknown | string;
-  expires_at: Date;
-}
-
 export interface ResearchSourceRow {
   id: string;
   run_id: string;

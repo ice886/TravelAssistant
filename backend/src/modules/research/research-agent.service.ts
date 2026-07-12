@@ -30,7 +30,6 @@ export class ResearchAgentService {
     const progress: ResearchAgentProgress = {
       currentRound: 0,
       maxRounds: input.maxRounds,
-      cacheHit: false,
       degraded: input.degradationReasons.length > 0,
       degradationReasons: [...input.degradationReasons],
       toolCalls: []

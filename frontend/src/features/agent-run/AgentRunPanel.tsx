@@ -214,9 +214,6 @@ export function AgentRunPanel({ onRunChange, onXhsStatusChange, run, trip }: Age
       {run?.summary ? <p className={run.status === "failed" || run.status === "blocked_config" ? "error-text" : "success-text"}>{run.summary}</p> : null}
       {run?.errorMessage ? <p className="error-text" role="alert">{run.errorMessage}</p> : null}
       {error ? <p className="error-text" role="alert">{error}</p> : null}
-      {run?.progress.cacheHit ? (
-        <p className="cache-notice" role="status">命中研究缓存，本次未执行 Agent 工具循环。</p>
-      ) : null}
       {run?.progress.degraded ? (
         <div className="degraded-notice" role="status">
           <strong>部分来源不可用，已使用备用来源继续。</strong>
@@ -265,7 +262,7 @@ export function AgentRunPanel({ onRunChange, onXhsStatusChange, run, trip }: Age
           </div>
         ) : null}
       </div>
-      {run && !run.progress.cacheHit ? (
+      {run ? (
         <div className="agent-rounds">
           <div className="panel-heading">
             <h3>工具执行记录</h3>

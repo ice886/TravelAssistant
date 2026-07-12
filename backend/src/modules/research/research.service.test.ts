@@ -1,4 +1,3 @@
-import { Logger } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppConfigService } from "../config/app-config.service";
@@ -7,7 +6,6 @@ import { McpService } from "../mcp/mcp.service";
 import { TripsService } from "../trips/trips.service";
 import { ResearchAgentService } from "./research-agent.service";
 import { ResearchAgentProgress, ResearchSourceDraft } from "./research-agent.types";
-import { ResearchCacheService } from "./research-cache.service";
 import { ResearchService } from "./research.service";
 
 const source: ResearchSourceDraft = {
@@ -21,7 +19,6 @@ const source: ResearchSourceDraft = {
 const completeProgress: ResearchAgentProgress = {
   currentRound: 2,
   maxRounds: 8,
-  cacheHit: false,
   degraded: false,
   degradationReasons: [],
   toolCalls: []
@@ -30,9 +27,7 @@ const completeProgress: ResearchAgentProgress = {
 function createHarness(options: {
   publicStatus?: AppConfigService["publicStatus"];
   xhsStatus?: Awaited<ReturnType<McpService["getXhsStatus"]>>;
-  cachedSources?: ResearchSourceDraft[] | null;
   agentError?: Error;
-  cacheError?: Error;
   activeRun?: Record<string, unknown>;
 } = {}) {
   const runs = new Map<string, Record<string, unknown>>();
@@ -65,35 +60,6 @@ function createHarness(options: {
         };
         runs.set(String(id), row);
         return Promise.resolve({ rows: [row] });
-      }
-
-      if (sql.includes("WITH inserted_sources AS")) {
-        const [runId, serializedSources, summary, checks, progress] = values;
-        const cachedSources = JSON.parse(String(serializedSources)) as Array<Record<string, unknown>>;
-        for (const cachedSource of cachedSources) {
-          insertedSources.push([
-            cachedSource.id,
-            runId,
-            cachedSource.provider,
-            cachedSource.title,
-            cachedSource.url,
-            cachedSource.snippet,
-            JSON.stringify(cachedSource.metadata)
-          ]);
-        }
-        const row = runs.get(String(runId));
-        if (row) {
-          Object.assign(row, {
-            status: "completed",
-            stage: "completed",
-            summary,
-            checks: JSON.parse(String(checks)),
-            progress: JSON.parse(String(progress)),
-            source_count: cachedSources.length,
-            completed_at: new Date("2026-07-12T00:01:00.000Z")
-          });
-        }
-        return Promise.resolve({ rows: [] });
       }
 
       if (sql.includes("INSERT INTO research_sources")) {
@@ -158,7 +124,7 @@ function createHarness(options: {
   } as unknown as TripsService;
   const config = {
     publicStatus: options.publicStatus ?? configuredStatus,
-    research: { maxRounds: 8, cacheTtlSeconds: 604800, staleAfterSeconds: 3600 },
+    research: { maxRounds: 8, staleAfterSeconds: 3600 },
     llm: {
       provider: "openai-compatible",
       baseUrl: "https://example.com/v1",
@@ -177,23 +143,12 @@ function createHarness(options: {
       return { summary: "来源研究已完成。", sources: [source], progress: completeProgress };
     })
   } as unknown as ResearchAgentService;
-  const cache = {
-    buildKey: vi.fn().mockReturnValue("cache-key"),
-    get: options.cacheError
-      ? vi.fn().mockRejectedValue(options.cacheError)
-      : vi.fn().mockResolvedValue(options.cachedSources
-          ? { sources: options.cachedSources, degraded: false, degradationReasons: [] }
-          : null),
-    set: vi.fn().mockResolvedValue(undefined)
-  } as unknown as ResearchCacheService;
-
   return {
-    service: new ResearchService(database, tripsService, config, mcpService, agent, cache),
+    service: new ResearchService(database, tripsService, config, mcpService, agent),
     runs,
     insertedSources,
     mcpService,
-    agent,
-    cache
+    agent
   };
 }
 
@@ -225,9 +180,15 @@ async function waitForTerminalRun(runs: Map<string, Record<string, unknown>>) {
   return [...runs.values()][0];
 }
 
+async function waitForRunCount(runs: Map<string, Record<string, unknown>>, count: number) {
+  await vi.waitFor(() => {
+    expect(runs.size).toBe(count);
+  });
+}
+
 describe("ResearchService", () => {
   it("returns a running run immediately and completes it in-process", async () => {
-    const { service, runs, agent, cache } = createHarness();
+    const { service, runs, agent } = createHarness();
 
     const created = await service.startResearch("trip-1");
 
@@ -235,7 +196,20 @@ describe("ResearchService", () => {
     const completed = await waitForTerminalRun(runs);
     expect(completed).toMatchObject({ status: "completed", stage: "completed", source_count: 1 });
     expect(agent.run).toHaveBeenCalledOnce();
-    expect(cache.set).toHaveBeenCalledWith("cache-key", [source], 604800, false, []);
+  });
+
+  it("executes a fresh Agent run each time instead of reusing research results", async () => {
+    const { service, runs, agent } = createHarness();
+
+    await service.startResearch("trip-1");
+    await waitForTerminalRun(runs);
+    await service.startResearch("trip-1");
+    await waitForRunCount(runs, 2);
+    await vi.waitFor(() => {
+      expect([...runs.values()][1]?.status).toBe("completed");
+    });
+
+    expect(agent.run).toHaveBeenCalledTimes(2);
   });
 
   it("blocks only when the required LLM configuration is missing", async () => {
@@ -275,42 +249,13 @@ describe("ResearchService", () => {
     expect((completed.progress as ResearchAgentProgress).degradationReasons[0]).toContain("小红书");
   });
 
-  it("materializes cached sources with fresh ids and skips all external services", async () => {
-    const { service, runs, insertedSources, mcpService, agent } = createHarness({ cachedSources: [source] });
-
-    await service.startResearch("trip-1");
-    const completed = await waitForTerminalRun(runs);
-
-    expect(completed.status).toBe("completed");
-    expect((completed.progress as ResearchAgentProgress).cacheHit).toBe(true);
-    expect(insertedSources).toHaveLength(1);
-    expect(String(insertedSources[0][0])).toMatch(/^[0-9a-f-]{36}$/);
-    expect(insertedSources[0][1]).toBe(completed.id);
-    expect(JSON.parse(String(insertedSources[0][6]))).toMatchObject({ cacheHit: true });
-    expect(mcpService.getXhsStatus).not.toHaveBeenCalled();
-    expect(agent.run).not.toHaveBeenCalled();
-  });
-
-  it("persists a failed terminal state and does not cache failed runs", async () => {
-    const { service, runs, cache } = createHarness({ agentError: new Error("invalid LLM decision") });
+  it("persists a failed terminal state", async () => {
+    const { service, runs } = createHarness({ agentError: new Error("invalid LLM decision") });
 
     await service.startResearch("trip-1");
     const completed = await waitForTerminalRun(runs);
 
     expect(completed).toMatchObject({ status: "failed", error_message: "invalid LLM decision" });
-    expect(cache.set).not.toHaveBeenCalled();
-  });
-
-  it("marks the run failed when cache preflight throws unexpectedly", async () => {
-    const logger = vi.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
-    const { service, runs, agent } = createHarness({ cacheError: new Error("database unavailable") });
-
-    await service.startResearch("trip-1");
-    const completed = await waitForTerminalRun(runs);
-
-    expect(completed).toMatchObject({ status: "failed", error_message: "database unavailable" });
-    expect(agent.run).not.toHaveBeenCalled();
-    logger.mockRestore();
   });
 
   it("reuses the active run instead of launching concurrent research", async () => {
@@ -349,7 +294,6 @@ describe("ResearchService", () => {
     expect(latest.progress).toEqual({
       currentRound: 0,
       maxRounds: 8,
-      cacheHit: false,
       degraded: false,
       degradationReasons: [],
       toolCalls: []

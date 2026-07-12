@@ -69,7 +69,6 @@ describe("research API", () => {
       progress: {
         currentRound: 0,
         maxRounds: 8,
-        cacheHit: false,
         degraded: false,
         degradationReasons: [],
         toolCalls: []
@@ -84,7 +83,7 @@ describe("research API", () => {
 
   it("reads latest run progress and current-run sources", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "run-1", progress: { cacheHit: true } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "run-1", progress: { degraded: false } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([{ id: "source-1", provider: "amap" }]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 

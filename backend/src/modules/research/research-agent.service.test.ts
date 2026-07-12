@@ -173,7 +173,7 @@ describe("ResearchAgentService", () => {
     expect(execute).toHaveBeenCalledOnce();
   });
 
-  it("sanitizes source length and unsafe URL before prompt, persistence, and cache output", async () => {
+  it("sanitizes source length and unsafe URL before prompt and persistence", async () => {
     const execute = vi.fn().mockResolvedValue({
       observation: "找到来源。",
       sources: [{

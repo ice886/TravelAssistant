@@ -4,7 +4,7 @@
 > 创建日期：2026-07-12
 > 基于：`BACKEND&FRONTEND_ARCHITECTURE.MD`（v1 基线保留，不删除）
 > 背景：参考 hello-agents trip-planner 项目及网络最佳实践，对研究管道、Provider 层、前端体验进行系统性优化。
-> 实施状态：Research ReAct、研究缓存、高德天气/路线、前端基础体验重设计已落地；LLM fallback、Planner 路线注入、地图、导出、Zustand/React Query 与全局错误过滤器仍为后续目标。
+> 实施状态：Research ReAct、高德天气/路线、前端基础体验重设计已落地；Research 结果缓存已移除；LLM fallback、Planner 路线注入、地图、导出、Zustand/React Query 与全局错误过滤器仍为后续目标。
 
 ---
 
@@ -14,7 +14,7 @@ TravelAssistant 采用标准前后端分离架构：
 
 - `frontend/`：React + TypeScript 旅行工作台，含地图可视化与行程导出。
 - `backend/`：NestJS + Fastify API 与 Agent 编排层。
-- `postgres`：本地持久化（含 research 结果缓存表）。
+- `postgres`：本地持久化旅行、Research run、来源和行程版本。
 - `xiaohongshu-mcp`：本地小红书 MCP 只读数据源（可选，支持降级）。
 
 浏览器只访问本项目后端，不直接访问 MCP、高德、Tavily 或 LLM。
@@ -27,7 +27,7 @@ TravelAssistant 采用标准前后端分离架构：
 flowchart LR
   User["User Browser"] --> Web["frontend / React"]
   Web --> Api["backend / NestJS"]
-  Api --> Db["Postgres\n(data + cache)"]
+  Api --> Db["Postgres\n(trips + runs + sources)"]
   Api --> Xhs["xiaohongshu-mcp\n(optional)"]
   Api --> Amap["Amap REST API\n(POI + Route + Weather)"]
   Api --> Tavily["Tavily Search"]
@@ -74,11 +74,11 @@ backend/
 
 从纯 POI 检索升级为地理服务套件，全部直连 Amap REST API（不使用 MCP）：
 
-| 方法                             | 说明                       |
-| -------------------------------- | -------------------------- |
-| `searchPlaces({ keywords, city, limit })` | 地点搜索 |
-| `geocode({ address, city })` | 地理编码 |
-| `getWeather({ city })` | 实时天气 + 预报 |
+| 方法                                                        | 说明                       |
+| ----------------------------------------------------------- | -------------------------- |
+| `searchPlaces({ keywords, city, limit })`                 | 地点搜索                   |
+| `geocode({ address, city })`                              | 地理编码                   |
+| `getWeather({ city })`                                    | 实时天气 + 预报            |
 | `estimateRoute({ origin, destination, strategy, city? })` | 路线规划（驾车/步行/公交） |
 
 ### 4.2 LlmProviderService
@@ -140,25 +140,9 @@ XHS 不可用（登录态失效 / 超时 / MCP 未启动）
 
 降级不阻塞行程生成，不向前端抛出 500 错误。
 
-### 5.3 Research 结果缓存
+### 5.3 Research run 生命周期
 
-新增 `research_cache` 表（PostgreSQL）：
-
-```sql
-CREATE TABLE research_cache (
-  id           UUID PRIMARY KEY,
-  cache_key    TEXT NOT NULL UNIQUE,  -- SHA256(destination + interests + duration)
-  sources      JSONB NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  expires_at   TIMESTAMPTZ NOT NULL   -- TTL 7 天
-);
-CREATE INDEX research_cache_expires_at_idx ON research_cache (expires_at);
-```
-
-命中缓存时跳过配置检查、Agent 循环和所有外部调用，并为当前新 run 物化新的 `research_sources.id`；
-未命中或已过期时执行 Agent 循环并回写缓存。
-
-cache key 当前由版本号、规范化目的地、去重排序兴趣、天数/日期、预算、旅客信息、LLM 标识和 provider 配置 profile 组成。缓存 envelope 同时保存覆盖/降级摘要；运行时 provider 失败或已配置 XHS 当前不可用的结果不缓存。TTL 使用秒级配置，默认 7 天。
+Research 不使用结果缓存。每次新建 Research run 都会重新执行配置检查、ReAct Agent 和可用外部 Provider 调用。
 
 同一 trip 通过 `agent_runs(trip_id) WHERE status='running'` 部分唯一索引保持单活；重复启动返回已有 run。再次启动时会将超过 `RESEARCH_STALE_AFTER_SECONDS` 的进程内遗留 run 标为 failed。
 
@@ -166,8 +150,7 @@ cache key 当前由版本号、规范化目的地、去重排序兴趣、天数/
 
 ## 6. Planner 模块（planner/）
 
-保持现有 LLM 单次 prompt → 结构化行程的方式（不改为 Agent 循环）：
-
+- 保持现有 LLM 单次 prompt → 结构化行程的方式（不改为 Agent 循环）：
 - 以最新 research sources 作为证据
 - 结果以不可变版本写入 `itinerary_versions`
 - 新增：调用 `AmapProviderService.getRoute()` 为每日行程补充景点间路线与耗时
@@ -232,7 +215,7 @@ frontend/
 
 - 已引入统一的暖色旅行工作台设计语言，使用语义化色彩、字体、间距、圆角、阴影和状态 Token。
 - 保留无第三方组件库的 React 基础组件，通过三阶段导航表达“描述旅程 → 收集证据 → 编辑行程”。
-- Research 的等待、缓存、降级、失败和完成状态使用一致的反馈层级与可恢复文案。
+- Research 的等待、降级、失败和完成状态使用一致的反馈层级与可恢复文案。
 - 响应式布局覆盖桌面、平板与 320px+ 移动端；触摸目标、键盘焦点、对比度和 reduced-motion 以 WCAG 2.2 AA 基础要求为约束。
 
 ### 9.3 状态管理
@@ -281,11 +264,10 @@ docker compose --profile xhs up --build           # 含 XHS MCP
 
 ## 12. 新增环境变量
 
-| 变量                        | 说明                            |
-| --------------------------- | ------------------------------- |
-| `XHS_MCP_TIMEOUT_MS` | MCP 单次请求超时，默认 `15000` |
-| `RESEARCH_CACHE_TTL_SECONDS` | Research 缓存 TTL，默认 `604800` |
-| `RESEARCH_MAX_ROUNDS` | ReAct Agent 最大轮次，默认且上限 `8` |
-| `RESEARCH_STALE_AFTER_SECONDS` | 遗留 running run 阈值，默认 `3600` |
-| `LLM_PRIMARY_*` / `LLM_FALLBACK_*` | 后续 fallback 目标配置，当前尚未读取 |
-| `EXPORT_CHROME_PATH` | 后续 Puppeteer Chrome 路径（可选） |
+| 变量                                   | 说明                                  |
+| -------------------------------------- | ------------------------------------- |
+| `XHS_MCP_TIMEOUT_MS`                 | MCP 单次请求超时，默认`15000`       |
+| `RESEARCH_MAX_ROUNDS`                | ReAct Agent 最大轮次，默认且上限`8` |
+| `RESEARCH_STALE_AFTER_SECONDS`       | 遗留 running run 阈值，默认`3600`   |
+| `LLM_PRIMARY_*` / `LLM_FALLBACK_*` | 后续 fallback 目标配置，当前尚未读取  |
+| `EXPORT_CHROME_PATH`                 | 后续 Puppeteer Chrome 路径（可选）    |

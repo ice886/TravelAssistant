@@ -13,7 +13,6 @@ import {
   ResearchSourceDraft,
   ResearchToolName
 } from "./research-agent.types";
-import { ResearchCacheService } from "./research-cache.service";
 import {
   AgentRun,
   AgentRunChecks,
@@ -33,8 +32,7 @@ export class ResearchService {
     @Inject(TripsService) private readonly tripsService: TripsService,
     @Inject(AppConfigService) private readonly config: AppConfigService,
     @Inject(McpService) private readonly mcpService: McpService,
-    @Inject(ResearchAgentService) private readonly agent: ResearchAgentService,
-    @Inject(ResearchCacheService) private readonly cache: ResearchCacheService
+    @Inject(ResearchAgentService) private readonly agent: ResearchAgentService
   ) {}
 
   async startResearch(tripId: string): Promise<AgentRun> {
@@ -165,20 +163,6 @@ export class ResearchService {
 
   private async executeResearch(runId: string, trip: Trip): Promise<void> {
     const publicStatus = this.config.publicStatus;
-    const cacheKey = this.cache.buildKey(trip, this.cacheProfile(publicStatus));
-    const cachedEntry = await this.cache.get(cacheKey);
-
-    if (cachedEntry) {
-      const progress: ResearchAgentProgress = {
-        ...this.emptyProgress(),
-        cacheHit: true,
-        degraded: cachedEntry.degraded,
-        degradationReasons: cachedEntry.degradationReasons
-      };
-      await this.completeFromCache(runId, cachedEntry.sources, progress);
-      return;
-    }
-
     const configChecks = this.createConfigChecks(publicStatus);
     if (configChecks.llm.status === "missing") {
       await this.updateRun(runId, {
@@ -238,7 +222,7 @@ export class ResearchService {
         degradationReasons,
         onProgress: async ({ progress, newSources }) => {
           for (const source of newSources) {
-            await this.insertSource(runId, source, false);
+            await this.insertSource(runId, source);
           }
           latestProgress = progress;
           await this.updateRun(runId, {
@@ -251,20 +235,6 @@ export class ResearchService {
           });
         }
       });
-
-      if (this.shouldCache(publicStatus, checks, result.progress)) {
-        try {
-          await this.cache.set(
-            cacheKey,
-            result.sources,
-            this.config.research.cacheTtlSeconds,
-            result.progress.degraded,
-            result.progress.degradationReasons
-          );
-        } catch (error) {
-          this.logger.warn(`Research cache write failed for run ${runId}: ${safeError(error)}`);
-        }
-      }
 
       await this.updateRun(runId, {
         status: "completed",
@@ -335,31 +305,9 @@ export class ResearchService {
     return reasons;
   }
 
-  private cacheProfile(status: PublicConfigStatus): string[] {
-    const llm = this.config.llm;
-    return [
-      `llm:${llm.provider}:${llm.model ?? "missing"}`,
-      `amap:${status.amap}`,
-      `tavily:${status.tavily}`,
-      `xiaohongshu:${status.xiaohongshuMcp}`
-    ];
-  }
-
-  private shouldCache(
-    status: PublicConfigStatus,
-    checks: AgentRunChecks,
-    progress: ResearchAgentProgress
-  ): boolean {
-    const failedTool = progress.toolCalls.some((call) => call.status === "failed");
-    const configuredXhsUnavailable =
-      status.xiaohongshuMcp === "configured" && checks.xiaohongshu.status !== "passed";
-    return !failedTool && !configuredXhsUnavailable;
-  }
-
   private async insertSource(
     runId: string,
-    source: ResearchSourceDraft,
-    cacheHit: boolean
+    source: ResearchSourceDraft
   ): Promise<void> {
     await this.database.query(
       `
@@ -373,72 +321,7 @@ export class ResearchService {
         source.title.slice(0, 300),
         source.url,
         source.snippet?.slice(0, 2000) ?? null,
-        JSON.stringify({ ...source.metadata, cacheHit })
-      ]
-    );
-  }
-
-  private async completeFromCache(
-    runId: string,
-    sources: ResearchSourceDraft[],
-    progress: ResearchAgentProgress
-  ): Promise<void> {
-    const materializedSources = sources.map((source) => ({
-      id: randomUUID(),
-      provider: source.provider,
-      title: source.title.slice(0, 300),
-      url: source.url,
-      snippet: source.snippet?.slice(0, 2000) ?? null,
-      metadata: { ...source.metadata, cacheHit: true }
-    }));
-    const summary = progress.degraded
-      ? `命中研究缓存，已复用 ${sources.length} 条来源；缓存覆盖范围受限。`
-      : `命中研究缓存，已复用 ${sources.length} 条来源。`;
-
-    await this.database.query(
-      `
-        WITH inserted_sources AS (
-          INSERT INTO research_sources (id, run_id, provider, title, url, snippet, metadata)
-          SELECT
-            cached.id,
-            $1,
-            cached.provider,
-            cached.title,
-            cached.url,
-            cached.snippet,
-            cached.metadata
-          FROM jsonb_to_recordset($2::jsonb) AS cached(
-            id uuid,
-            provider text,
-            title text,
-            url text,
-            snippet text,
-            metadata jsonb
-          )
-          WHERE EXISTS (
-            SELECT 1 FROM agent_runs active_run
-            WHERE active_run.id = $1 AND active_run.status = 'running'
-          )
-          RETURNING id
-        )
-        UPDATE agent_runs
-        SET
-          status = 'completed',
-          stage = 'completed',
-          summary = $3,
-          error_message = NULL,
-          checks = $4::jsonb,
-          progress = $5::jsonb,
-          updated_at = now(),
-          completed_at = now()
-        WHERE id = $1 AND status = 'running'
-      `,
-      [
-        runId,
-        JSON.stringify(materializedSources),
-        summary,
-        JSON.stringify(this.cachedChecks()),
-        JSON.stringify(progress)
+        JSON.stringify(source.metadata)
       ]
     );
   }
@@ -625,21 +508,10 @@ export class ResearchService {
     };
   }
 
-  private cachedChecks(): AgentRunChecks {
-    const cacheCheck = { status: "skipped" as const, message: "命中缓存，未调用外部服务。" };
-    return {
-      llm: { ...cacheCheck },
-      amap: { ...cacheCheck },
-      tavily: { ...cacheCheck },
-      xiaohongshu: { ...cacheCheck }
-    };
-  }
-
   private emptyProgress(): ResearchAgentProgress {
     return {
       currentRound: 0,
       maxRounds: this.config.research.maxRounds,
-      cacheHit: false,
       degraded: false,
       degradationReasons: [],
       toolCalls: []
@@ -720,7 +592,6 @@ function normalizeProgress(value: unknown, fallback: ResearchAgentProgress): Res
   return {
     currentRound: nonNegativeInteger(value.currentRound) ?? fallback.currentRound,
     maxRounds: positiveInteger(value.maxRounds) ?? fallback.maxRounds,
-    cacheHit: typeof value.cacheHit === "boolean" ? value.cacheHit : fallback.cacheHit,
     degraded: typeof value.degraded === "boolean" ? value.degraded : fallback.degraded,
     degradationReasons: Array.isArray(value.degradationReasons)
       ? value.degradationReasons.filter((item): item is string => typeof item === "string")

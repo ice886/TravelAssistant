@@ -6,7 +6,6 @@ import { McpModule } from "../mcp/mcp.module";
 import { ProvidersModule } from "../providers/providers.module";
 import { TripsModule } from "../trips/trips.module";
 import { ResearchAgentService } from "./research-agent.service";
-import { ResearchCacheService } from "./research-cache.service";
 import { ResearchController } from "./research.controller";
 import { ResearchService } from "./research.service";
 import { ResearchToolsService } from "./research-tools.service";
@@ -14,6 +13,6 @@ import { ResearchToolsService } from "./research-tools.service";
 @Module({
   imports: [AppConfigModule, DatabaseModule, TripsModule, McpModule, ProvidersModule],
   controllers: [ResearchController],
-  providers: [ResearchService, ResearchAgentService, ResearchCacheService, ResearchToolsService]
+  providers: [ResearchService, ResearchAgentService, ResearchToolsService]
 })
 export class ResearchModule {}

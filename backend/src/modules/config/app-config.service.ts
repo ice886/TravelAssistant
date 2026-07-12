@@ -35,7 +35,6 @@ export interface TavilyConfig {
 
 export interface ResearchConfig {
   maxRounds: number;
-  cacheTtlSeconds: number;
   staleAfterSeconds: number;
 }
 
@@ -116,7 +115,6 @@ export class AppConfigService {
   get research(): ResearchConfig {
     return {
       maxRounds: this.positiveInteger("RESEARCH_MAX_ROUNDS", 8, 8),
-      cacheTtlSeconds: this.positiveInteger("RESEARCH_CACHE_TTL_SECONDS", 604800),
       staleAfterSeconds: this.positiveInteger("RESEARCH_STALE_AFTER_SECONDS", 3600)
     };
   }

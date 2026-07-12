@@ -113,22 +113,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       )
     `);
 
-    await this.query(`
-      CREATE TABLE IF NOT EXISTS research_cache (
-        id uuid PRIMARY KEY,
-        cache_key text NOT NULL UNIQUE,
-        sources jsonb NOT NULL,
-        created_at timestamptz NOT NULL DEFAULT now(),
-        expires_at timestamptz NOT NULL
-      )
-    `);
-
-    await this.query(`
-      CREATE INDEX IF NOT EXISTS research_cache_expires_at_idx
-      ON research_cache (expires_at)
-    `);
-
-    await this.query(`DELETE FROM research_cache WHERE expires_at <= now()`);
+    await this.query(`DROP TABLE IF EXISTS research_cache`);
   }
 
   async onModuleDestroy(): Promise<void> {

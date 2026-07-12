@@ -70,7 +70,6 @@ export function SourcesPanel({ trip, run }: { trip: Trip | null; run: AgentRun |
           <p className="muted">融合旅行者经验、地点数据与公开网页信息。</p>
         </div>
         <div className="button-row">
-          {run?.progress.cacheHit ? <span className="pill status-good">缓存来源</span> : null}
           <span className="pill">{sources.length} 条</span>
         </div>
       </div>

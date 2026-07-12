@@ -56,7 +56,6 @@ export interface ResearchToolCallRecord {
 export interface ResearchAgentProgress {
   currentRound: number;
   maxRounds: number;
-  cacheHit: boolean;
   degraded: boolean;
   degradationReasons: string[];
   toolCalls: ResearchToolCallRecord[];

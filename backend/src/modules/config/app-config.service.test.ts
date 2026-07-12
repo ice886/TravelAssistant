@@ -30,10 +30,8 @@ describe("AppConfigService", () => {
 
   it("uses positive research settings and caps Agent rounds at eight", () => {
     vi.stubEnv("RESEARCH_MAX_ROUNDS", "20");
-    vi.stubEnv("RESEARCH_CACHE_TTL_SECONDS", "0.5");
     expect(new AppConfigService().research).toEqual({
       maxRounds: 8,
-      cacheTtlSeconds: 604800,
       staleAfterSeconds: 3600
     });
   });

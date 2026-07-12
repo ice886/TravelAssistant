@@ -168,14 +168,13 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .timeline-item { background: #f8f8f4; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .timeline-item p { font-size: .8rem; margin: 8px 0 0; }
-.login-recovery, .cache-notice, .degraded-notice, .round-item { border-radius: 12px; margin: 14px 0; padding: 14px; }
+.login-recovery, .degraded-notice, .round-item { border-radius: 12px; margin: 14px 0; padding: 14px; }
 .login-recovery, .round-item { background: #f6f8f5; border: 1px solid var(--line); }
 .login-recovery { display: grid; gap: 12px; }
 .login-recovery-heading, .source-result-heading { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
 .login-recovery h3 { margin-bottom: 4px; }
 .login-recovery .muted, .round-item p:last-child, .degraded-notice p:last-child { margin-bottom: 0; }
 .login-qrcode { background: white; border: 1px solid var(--line); border-radius: 10px; height: 220px; object-fit: contain; padding: 8px; width: 220px; }
-.cache-notice { background: var(--success-bg); border: 1px solid #add1bc; color: var(--success); }
 .degraded-notice { background: var(--warning-bg); border: 1px solid #e5ca7c; color: var(--warning); }
 .agent-rounds { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 18px; }
 .round-list, .source-results { display: grid; gap: 10px; }
