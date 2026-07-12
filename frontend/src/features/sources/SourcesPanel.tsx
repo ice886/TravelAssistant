@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { getResearchSources, ResearchSource, Trip } from "../../api/client";
+import { AgentRun, getResearchSources, ResearchSource, Trip } from "../../api/client";
+import { safeSourceUrl, sourceProviderLabel } from "./sourcePresentation";
 
 const sourceTypes = [
   {
@@ -17,45 +18,53 @@ const sourceTypes = [
   }
 ];
 
-const providerLabels: Record<ResearchSource["provider"], string> = {
-  xiaohongshu: "小红书",
-  amap: "高德地图",
-  tavily: "网页"
-};
-
-export function SourcesPanel({ trip }: { trip: Trip | null }) {
+export function SourcesPanel({ trip, run }: { trip: Trip | null; run: AgentRun | null }) {
   const [sources, setSources] = useState<ResearchSource[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setSources([]);
     setError(null);
-    if (!trip) return;
+  }, [run?.id, trip?.id]);
+
+  useEffect(() => {
+    const tripId = trip?.id;
+    const runId = run?.id;
+    if (!tripId || !runId || run.tripId !== tripId) return;
     let active = true;
-    const loadSources = () => {
-      getResearchSources(trip.id)
-        .then((nextSources) => {
-          if (active) setSources(nextSources);
-        })
-        .catch((sourceError: unknown) => {
-          if (active && !String(sourceError).includes("404")) {
-            setError(sourceError instanceof Error ? sourceError.message : "来源请求失败");
-          }
-        });
+    let timeoutId: number | null = null;
+    const loadSources = async () => {
+      try {
+        const nextSources = await getResearchSources(tripId);
+        if (active) {
+          setSources(nextSources.filter((source) => source.runId === runId));
+          setError(null);
+        }
+      } catch (sourceError) {
+        if (active && !String(sourceError).includes("404")) {
+          setError(sourceError instanceof Error ? sourceError.message : "来源请求失败");
+        }
+      } finally {
+        if (active && run.status === "running") {
+          timeoutId = window.setTimeout(loadSources, 3000);
+        }
+      }
     };
-    loadSources();
-    const interval = window.setInterval(loadSources, 3000);
+    void loadSources();
     return () => {
       active = false;
-      window.clearInterval(interval);
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
     };
-  }, [trip]);
+  }, [run?.id, run?.status, run?.tripId, trip?.id]);
 
   return (
     <section className="panel">
       <div className="panel-heading">
         <h2>来源证据</h2>
-        <span className="pill">{sources.length} 条</span>
+        <div className="button-row">
+          {run?.progress.cacheHit ? <span className="pill status-good">缓存来源</span> : null}
+          <span className="pill">{sources.length} 条</span>
+        </div>
       </div>
       <div className="source-grid">
         {sourceTypes.map((source) => (
@@ -65,14 +74,21 @@ export function SourcesPanel({ trip }: { trip: Trip | null }) {
           </article>
         ))}
       </div>
-      {error ? <p className="error-text">{error}</p> : null}
+      {error ? <p className="error-text" role="alert">{error}</p> : null}
       {sources.length > 0 ? (
         <div className="source-results">
           {sources.map((source) => (
             <article className="source-result" key={source.id}>
               <div className="source-result-heading">
-                <span className="pill">{providerLabels[source.provider]}</span>
-                {source.url ? <a href={source.url} target="_blank" rel="noreferrer">打开来源</a> : null}
+                <span className="pill">{sourceProviderLabel(source)}</span>
+                {safeSourceUrl(source.url) ? (
+                  <a
+                    aria-label={`打开来源：${source.title}`}
+                    href={safeSourceUrl(source.url) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >打开来源</a>
+                ) : null}
               </div>
               <h3>{source.title}</h3>
               {source.snippet ? <p className="muted">{source.snippet}</p> : null}

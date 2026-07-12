@@ -1,104 +1,100 @@
-# PROJECT_STRUCTURE
+# PROJECT STRUCTURE
 
 ## 1. 当前项目状态
 
-当前仓库已建立最小前后端分离骨架，并完成旅行计划创建、小红书 MCP 状态检查和 research run 预检的首个业务闭环：
-- 根目录使用 npm workspaces 管理 `backend` 和 `frontend`。
-- `backend` 是 Nest.js + Fastify 服务，当前包含 `config`、`health`、`database`、`trips`、`safety`、`mcp`、`providers` 和 `research` 模块。
-- `frontend` 是 Vite React 中文工作台，当前包含旅行表单、Agent 进度、来源证据和行程编辑区域；旅行表单已接入 `POST /api/trips`，Agent 面板已接入 `POST /api/trips/:id/research`，状态栏已接入 `/api/health` 与 `/api/xhs/status`。
-- `docker-compose.yml` 描述本地 `web`、`api`、`postgres` 三个默认服务，并通过 `xhs` profile 按需启动 `xiaohongshu-mcp`。
+TravelAssistant 已形成从旅行需求到研究证据、再到可编辑行程的首个完整闭环：
 
-## 2. 根目录文件
+- npm workspaces 管理 NestJS/Fastify 后端与 Vite/React 前端。
+- PostgreSQL 保存 trip、Agent run、研究来源、研究缓存和不可变行程版本。
+- Research 由受约束 ReAct Agent 编排小红书、Tavily、高德 POI、天气和路线工具。
+- 小红书 MCP 是可选只读数据源；不可用时自动降级，不阻塞 Tavily/高德研究和后续行程生成。
+- Planner 使用最新已完成研究来源，通过 OpenAI-compatible LLM 生成结构化行程，并支持编辑另存新版本。
+- Compose 默认包含 `web`、`api`、`postgres`，`xhs` profile 按需启动 `xiaohongshu-mcp`。
 
-- `package.json`：workspace 入口和统一脚本。
-- `tsconfig.base.json`：前后端共享 TypeScript 基础配置。
-- `.env.example`：本地运行所需环境变量占位。
-- `.env.local.example`：本机后端直连 Docker Postgres/MCP 时的覆盖配置模板。
-- `docker-compose.yml`：本地容器编排。
-- `README.md`：运行方式、架构和质量检查说明。
+## 2. 根目录
 
-## 3. 后端结构
+- `package.json`：workspace 入口；统一提供 lint、typecheck、test 和 build。
+- `tsconfig.base.json`：共享 TypeScript 配置。
+- `.env.example`：所有后端/provider/Research 配置占位。
+- `.env.local.example`：本机后端直连 Docker Postgres/MCP 的 host override。
+- `docker-compose.yml`：服务编排与环境变量透传。
+- `README.md`：运行、API、功能和安全说明。
 
-`backend/src/main.ts`
-- 启动时先加载仓库根目录或后端目录下的 `.env`，再加载 `.env.local` 并允许覆盖。
-- `.env.local` 用于本机后端开发场景，将 Docker 内部服务名覆盖为 `localhost`。
-- 创建 Nest 应用。
-- 设置 `/api` 全局前缀。
-- 按 `WEB_ORIGIN` 启用 CORS，支持本地 Vite 前端直连后端。
-- 使用 Fastify adapter。
-- 根据 `AppConfigService` 配置监听端口。
+## 3. 后端模块
 
-`backend/src/modules/config/`
-- `AppConfigService` 读取环境变量。
-- `publicStatus` 仅返回配置是否存在，不返回密钥明文。
-- `databaseUrl` 从 `DATABASE_URL` 读取，供数据库模块使用。
-- `xhsMcpUrl` 和 `xhsReadonlyTools` 供 MCP 与安全模块使用。
+### `config/` 与 `health/`
 
-`backend/src/modules/health/`
-- `GET /api/health` 返回服务状态和配置状态。
-- 使用显式 `@Inject(...)`，确保 `tsx` dev 模式和 `tsc` build 模式都能稳定注入依赖。
+- `AppConfigService` 读取数据库、MCP、LLM、高德、Tavily 和 Research 配置。
+- LLM readiness 同时要求 `LLM_API_KEY` 与 `LLM_MODEL`。
+- `GET /api/health` 只暴露 configured/missing，不返回密钥值。
 
-`backend/src/modules/database/`
-- 使用 `pg` 连接 Postgres。
-- 应用启动时确保 `trips`、`agent_runs` 和 `research_sources` 表存在。
-- 对业务模块只暴露参数化 `query()` 方法。
+### `database/`
 
-`backend/src/modules/trips/`
-- `POST /api/trips` 创建本地 draft 旅行计划。
-- `GET /api/trips` 按创建时间倒序列出旅行计划。
-- `GET /api/trips/:id` 查询单个旅行计划。
-- 该模块不依赖 `xiaohongshu-mcp`；小红书能力从后续 research 阶段接入。
+- 使用 `pg` Pool 和参数化查询。
+- 启动时以兼容式 DDL 确保 `trips`、`agent_runs`、`research_sources`、`research_cache`、`itinerary_versions` 存在。
+- `agent_runs.progress` 使用 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 升级旧数据库。
 
-`backend/src/modules/safety/`
-- `SafetyService` 维护小红书 MCP 只读白名单和写操作黑名单。
-- 即使环境变量误配置，发布、评论、点赞、收藏和删除 cookies 工具仍会被拒绝。
+### `trips/`
 
-`backend/src/modules/mcp/`
-- `McpHttpClient` 使用 JSON-RPC over Streamable HTTP 访问 `XHS_MCP_URL`。
-- `McpService` 提供小红书 MCP 连接状态、工具发现、登录状态和二维码获取。
-- `McpController` 暴露 `GET /api/xhs/status`、`GET /api/xhs/login-qrcode` 与 `GET /api/xhs/login-qrcode/image`。
-- MCP 未配置、未启动或调用失败时返回归一化状态，不影响创建旅行计划。
+- `POST /api/trips` 创建 draft。
+- `GET /api/trips` 和 `GET /api/trips/:id` 查询。
 
-`backend/src/modules/providers/`
-- `ProvidersModule` 导出 `AmapProviderService`、`TavilyProviderService` 和 `LlmProviderService`。
-- `AmapProviderService` 支持高德地点搜索、地理编码和步行/驾车路线距离估算。
-- `TavilyProviderService` 支持 Tavily 搜索，并归一化标题、URL、摘要、score 和 answer。
-- `LlmProviderService` 支持 OpenAI-compatible chat completion 和 JSON completion；JSON completion 会要求模型只返回 JSON，并解析失败时抛出 provider 错误。
-- provider services 接收可注入 `fetchFn`，测试中使用 mock，不依赖真实外部服务。
+### `safety/` 与 `mcp/`
 
-`backend/src/modules/research/`
-- `POST /api/trips/:id/research` 为指定 trip 创建 Agent research run。
-- 首版执行 provider 配置检查和小红书 MCP 登录状态检查，不消耗真实外部搜索或 LLM 调用额度。
-- `GET /api/trips/:id/research-runs/latest` 返回最新 run、阶段、检查结果、错误摘要和来源数量。
-- provider 缺失时 run 进入 `blocked_config`；MCP 未登录或不可用时进入 `waiting_login`；预检通过时进入 `completed`。
+- Safety 硬编码拒绝发布、评论、点赞、收藏和删除 cookies 等写工具。
+- MCP client 使用 JSON-RPC over Streamable HTTP，并通过 `XHS_MCP_TIMEOUT_MS` 中止超时请求。
+- 状态和二维码 API 保留，供用户选择登录；新 Research run 不再因未登录进入阻塞等待。
+
+### `providers/`
+
+- `AmapProviderService`：POI、地理编码、实时天气与预报、步行/驾车/公交路线估算。
+- `TavilyProviderService`：网页检索和结果归一化。
+- `LlmProviderService`：单个 OpenAI-compatible chat/JSON completion 端点。
+- provider 支持注入 `fetchFn`，测试不访问真实外部网络。
+- v2 计划中的 LLM primary/fallback 链尚未实现，当前仍使用兼容的 `LLM_*` 配置。
+
+### `research/`
+
+- `ResearchService` 创建 run 后立即返回，并在 API 进程内继续执行；未预期错误尝试写入 failed 终态。
+- `ResearchAgentService` 最多执行 8 轮安全 decision → tool → observation，去重来源和重复调用。
+- `research-agent.validator.ts` 严格验证 action、工具白名单、参数和额外字段。
+- `ResearchToolsService` 只映射五个注册工具：`xhs_search`、`web_search`、`poi_search`、`get_weather`、`get_route`。
+- `ResearchCacheService` 使用规范化旅行需求 SHA-256 key，默认缓存 7 天。
+- cache key 同时包含预算、旅客、模型和 provider 配置 profile；缓存 envelope 保留覆盖/降级信息，运行时 provider 失败结果不缓存。
+- 缓存命中会为新 run 物化新的 `research_sources` UUID，保持来源 API 与 Planner 引用有效。
+- PostgreSQL 部分唯一索引与服务端 active-run 查询共同保证同一 trip 单活；再次启动时会终止超过阈值的遗留 running run。
+- `progress` 只保存工具执行安全摘要，不保存模型 Thought、prompt、第三方 raw response 或 XHS 临时 token。
+
+### `planner/`
+
+- 读取最新 completed 且有来源的 research run，避免新的空 running run 遮蔽已有证据。
+- LLM JSON completion 经严格行程 Schema 校验后写入 `itinerary_versions`。
+- 生成与编辑均创建递增不可变版本；未知来源 ID 在入库前过滤。
 
 ## 4. 前端结构
 
-`frontend/src/app/`
-- `App.tsx` 是工作台首屏布局。
-- `App.tsx` 调用 `GET /api/health` 展示 API 和 Postgres 状态，调用 `GET /api/xhs/status` 展示小红书 MCP 连接和登录状态。
-- `styles.css` 定义全局布局、面板和响应式样式。
+- `app/App.tsx`：工作台布局，持有当前 trip、当前 run 和服务状态。
+- `trip-form/`：创建旅行计划；切换新 trip 时清空当前 run。
+- `agent-run/`：启动研究、轮询 running run、展示配置检查、轮次、工具安全摘要、缓存命中和降级信息；旧 `waiting_login` 恢复 UI 保留兼容。
+- `sources/`：跟随 run ID 加载来源；running 时轮询，终态停止；区分高德 POI、天气和路线。
+- `itinerary-editor/`：读取/生成最新行程，编辑后保存新版本。
+- `api/client.ts`：集中维护后端 API 类型与 fetch 调用。
+- mpn
 
-`frontend/src/features/`
-- `trip-form/`：创建旅行计划表单，提交后调用后端创建 draft trip。
-- `agent-run/`：基于当前 trip 启动 research run，展示配置和 MCP 预检状态，并在 running 时轮询最新 run；进入 `waiting_login` 时可获取/刷新小红书登录二维码，扫码后重新检查并恢复研究预检。
-- `sources/`：来源证据区占位。
-- `itinerary-editor/`：读取或生成最新行程，展示逐日活动，并将编辑结果保存为新版本。
-- 当前前端用户可见文案默认使用中文；API 字段名和后端契约仍保持英文标识。
+## 5. 当前运行边界
 
-`frontend/src/api/client.ts`
-- 封装基础 API 地址。
-- 提供 `getHealth()`、`getXhsStatus()`、`createTrip()`、`startResearch()` 和 `getLatestResearchRun()`。
+- Research 是进程内异步执行，不依赖队列；API 重启后的 run 恢复尚未实现。
+- `RESEARCH_MAX_ROUNDS` 默认且上限为 8；`RESEARCH_CACHE_TTL_SECONDS` 默认 604800。
+- `RESEARCH_STALE_AFTER_SECONDS` 默认 3600，用于再次启动时处理进程重启遗留的 running run。
+- 根 `.dockerignore` 排除 `.env`、Git、依赖、构建产物与 XHS Cookie 数据，避免进入 Docker build context。
+- 浏览器只访问本项目后端，所有 provider 密钥留在后端环境变量。
 
-## 5. 后续开发入口
+## 6. 后续开发入口
 
-建议下一步优先补充：
-1. 小红书登录二维码入口与 `waiting_login` 状态下的恢复流程。
-2. 在 research run 中接入 Tavily 搜索和小红书只读搜索，落库 `research_sources`。
-3. 使用高德 provider 解析候选地点并形成地点证据。
-4. 已使用 LLM JSON completion 汇总来源，生成并版本化保存首版可编辑行程。
-## Research 来源采集
+按 v2 架构建议依次推进：
 
-`backend/src/modules/research/` 负责 research run 的预检、来源采集、状态持久化和来源查询。当前采集链路为：小红书只读 MCP `search_feeds`、高德 POI 搜索、Tavily 网页搜索。来源统一写入 `research_sources`，前端 `SourcesPanel` 按当前 trip 每 3 秒刷新一次。
-
-`backend/src/modules/planner/` 读取最新研究来源，通过 LLM JSON completion 生成结构化行程。生成和手动保存均写入 `itinerary_versions` 新版本，前端 `ItineraryEditor` 显示最新版本并支持编辑保存。
+1. Planner 将研究阶段的天气与路线证据注入活动，并形成稳定坐标/路段契约。
+2. 前端高德地图可视化及行程编辑联动。
+3. 行程 PDF 导出。
+4. LLM primary/fallback provider 链和全局统一错误过滤器。
+5. 当任务规模需要时，将进程内 Research executor 升级为可恢复队列/worker。

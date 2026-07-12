@@ -28,6 +28,9 @@
 - `AMAP_BASE_URL`，默认 `https://restapi.amap.com/v3`
 - `AMAP_TIMEOUT_MS`，默认 `10000`
 
+小红书 MCP：
+- `XHS_MCP_TIMEOUT_MS`，默认 `15000`，每次 JSON-RPC 请求超时后中止。
+
 Tavily：
 - `TAVILY_API_KEY`
 - `TAVILY_BASE_URL`，默认 `https://api.tavily.com`
@@ -45,8 +48,9 @@ LLM：
 `AmapProviderService`
 - `searchPlaces({ keywords, city, limit })`
 - `geocode({ address, city })`
-- `estimateRoute({ origin, destination, strategy })`
-- 返回 `AmapPlace` 或 `AmapRouteEstimate`，坐标统一为 `{ longitude, latitude }`。
+- `estimateRoute({ origin, destination, strategy, city? })`，支持 `walking | driving | transit`。
+- `getWeather({ city })`：城市名先通过 geocode 解析为 adcode，再以 adcode 调用天气接口并合并实时天气与预报；直接传 6 位 adcode 时跳过解析。高德天气接口的 `city` 参数要求 adcode，见[官方天气文档](https://lbs.amap.com/api/webservice/guide/api/weatherinfo)。
+- 返回 `AmapPlace`、`AmapRouteEstimate` 或 `AmapWeather`，坐标统一为 `{ longitude, latitude }`。
 
 `TavilyProviderService`
 - `search({ query, maxResults, searchDepth, includeAnswer })`
@@ -56,6 +60,7 @@ LLM：
 - `chat({ messages, model, temperature, maxTokens })`
 - `completeJson({ messages, schemaName, schema })`
 - `completeJson` 会向模型追加 JSON-only 指令，并解析 `content`；非 JSON 内容抛出 `ProviderError("llm", "invalid_response", ...)`。
+- 当前实现使用单个 OpenAI-compatible `LLM_*` 端点；v2 架构中的 primary/fallback 链仍属于后续迭代，不应配置尚未被代码读取的 `LLM_PRIMARY_*`。
 
 ## 5. 错误边界
 

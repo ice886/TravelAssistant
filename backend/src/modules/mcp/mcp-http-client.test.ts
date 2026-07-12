@@ -31,4 +31,19 @@ describe("McpHttpClient", () => {
       "搜索Feeds失败: browser timeout"
     );
   });
+
+  it("times out while a response body remains open", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new ReadableStream({ start() {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      )
+    );
+    const client = new McpHttpClient("http://localhost:18060/mcp", 10);
+
+    await expect(client.initialize()).rejects.toThrow("timed out after 10ms");
+  });
 });

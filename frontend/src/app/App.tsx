@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getHealth, getXhsStatus, HealthResponse, Trip, XhsStatusResponse } from "../api/client";
+import { AgentRun, getHealth, getXhsStatus, HealthResponse, Trip, XhsStatusResponse } from "../api/client";
 import { AgentRunPanel } from "../features/agent-run/AgentRunPanel";
 import { ItineraryEditor } from "../features/itinerary-editor/ItineraryEditor";
 import { SourcesPanel } from "../features/sources/SourcesPanel";
@@ -60,6 +60,14 @@ export function App() {
   const [xhsStatus, setXhsStatus] = useState<XhsStatusResponse | null>(null);
   const [xhsError, setXhsError] = useState<string | null>(null);
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
+  const [currentRun, setCurrentRun] = useState<AgentRun | null>(null);
+  const currentTripIdRef = useRef<string | null>(null);
+
+  const handleRunChange = useCallback((run: AgentRun | null) => {
+    if (!run || run.tripId === currentTripIdRef.current) {
+      setCurrentRun(run);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -119,17 +127,23 @@ export function App() {
 
       <section className="workspace">
         <aside className="sidebar">
-          <TripForm onTripCreated={setCurrentTrip} />
+          <TripForm onTripCreated={(trip) => {
+            currentTripIdRef.current = trip.id;
+            setCurrentTrip(trip);
+            setCurrentRun(null);
+          }} />
           <AgentRunPanel
+            onRunChange={handleRunChange}
             onXhsStatusChange={(status) => {
               setXhsStatus(status);
               setXhsError(null);
             }}
+            run={currentRun}
             trip={currentTrip}
           />
         </aside>
         <section className="main-column">
-          <SourcesPanel trip={currentTrip} />
+          <SourcesPanel run={currentRun} trip={currentTrip} />
           <ItineraryEditor trip={currentTrip} />
         </section>
       </section>

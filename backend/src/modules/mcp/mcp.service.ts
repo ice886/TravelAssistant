@@ -152,7 +152,7 @@ export class McpService {
       return null;
     }
 
-    return new McpHttpClient(this.config.xhsMcpUrl);
+    return new McpHttpClient(this.config.xhsMcpUrl, this.config.xhsMcpTimeoutMs);
   }
 
   private async readLoginStatus(client: McpHttpClient, tools?: McpTool[]): Promise<XhsLoginStatus> {

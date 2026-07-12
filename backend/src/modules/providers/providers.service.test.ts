@@ -80,6 +80,67 @@ describe("AmapProviderService", () => {
       }
     });
   });
+
+  it("combines current weather and forecast responses", async () => {
+    const service = new AmapProviderService(
+      createConfig({
+        amap: {
+          apiKey: "amap-key",
+          baseUrl: "https://restapi.amap.com/v3",
+          timeoutMs: 1000
+        }
+      })
+    );
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        status: "1",
+        geocodes: [{ formatted_address: "杭州市", city: "杭州市", adcode: "330100", location: "120.1,30.2" }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        status: "1",
+        lives: [{ city: "杭州市", weather: "晴", temperature: "30", humidity: "70", reporttime: "now" }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        status: "1",
+        forecasts: [{ casts: [{ date: "2026-07-13", dayweather: "多云", daytemp: "31", nighttemp: "24" }] }]
+      }));
+
+    const weather = await service.getWeather({ city: "杭州" }, fetchFn);
+
+    expect(weather.live).toMatchObject({ weather: "晴", temperatureCelsius: 30 });
+    expect(weather.adcode).toBe("330100");
+    expect(weather.forecasts[0]).toMatchObject({ date: "2026-07-13", dayTemperatureCelsius: 31 });
+    expect(String(fetchFn.mock.calls[1][0])).toContain("city=330100");
+    expect(String(fetchFn.mock.calls[1][0])).toContain("extensions=base");
+    expect(String(fetchFn.mock.calls[2][0])).toContain("extensions=all");
+  });
+
+  it("normalizes public transit route estimates", async () => {
+    const service = new AmapProviderService(
+      createConfig({
+        amap: {
+          apiKey: "amap-key",
+          baseUrl: "https://restapi.amap.com/v3",
+          timeoutMs: 1000
+        }
+      })
+    );
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({
+      status: "1",
+      route: { transits: [{ distance: "12000", duration: "3600" }] }
+    }));
+
+    const route = await service.estimateRoute({
+      origin: { longitude: 120.1, latitude: 30.1 },
+      destination: { longitude: 120.2, latitude: 30.2 },
+      strategy: "transit",
+      city: "杭州"
+    }, fetchFn);
+
+    expect(route).toMatchObject({ distanceMeters: 12000, durationSeconds: 3600, strategy: "transit" });
+    expect(String(fetchFn.mock.calls[0][0])).toContain("/direction/transit/integrated");
+    expect(String(fetchFn.mock.calls[0][0])).toContain("city=%E6%9D%AD%E5%B7%9E");
+  });
 });
 
 describe("TavilyProviderService", () => {

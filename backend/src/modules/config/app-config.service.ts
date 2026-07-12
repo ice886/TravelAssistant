@@ -33,6 +33,12 @@ export interface TavilyConfig {
   timeoutMs: number;
 }
 
+export interface ResearchConfig {
+  maxRounds: number;
+  cacheTtlSeconds: number;
+  staleAfterSeconds: number;
+}
+
 @Injectable()
 export class AppConfigService {
   private readonly env = process.env;
@@ -55,6 +61,10 @@ export class AppConfigService {
 
   get xhsMcpUrl(): string | null {
     return this.env.XHS_MCP_URL?.trim() || null;
+  }
+
+  get xhsMcpTimeoutMs(): number {
+    return this.positiveNumber("XHS_MCP_TIMEOUT_MS", 15000);
   }
 
   get xhsReadonlyTools(): string[] {
@@ -103,27 +113,42 @@ export class AppConfigService {
     };
   }
 
+  get research(): ResearchConfig {
+    return {
+      maxRounds: this.positiveInteger("RESEARCH_MAX_ROUNDS", 8, 8),
+      cacheTtlSeconds: this.positiveInteger("RESEARCH_CACHE_TTL_SECONDS", 604800),
+      staleAfterSeconds: this.positiveInteger("RESEARCH_STALE_AFTER_SECONDS", 3600)
+    };
+  }
+
   get publicStatus(): PublicConfigStatus {
+    const llm = this.llm;
+    const amap = this.amap;
+    const tavily = this.tavily;
     return {
       nodeEnv: this.nodeEnv,
       apiPort: this.apiPort,
       webOrigin: this.webOrigin,
-      database: this.statusOf("DATABASE_URL"),
-      xiaohongshuMcp: this.statusOf("XHS_MCP_URL"),
-      llm: this.statusOf("LLM_API_KEY"),
-      amap: this.statusOf("AMAP_API_KEY"),
-      tavily: this.statusOf("TAVILY_API_KEY")
+      database: this.env.DATABASE_URL?.trim() ? "configured" : "missing",
+      xiaohongshuMcp: this.xhsMcpUrl ? "configured" : "missing",
+      llm: llm.apiKey && llm.model ? "configured" : "missing",
+      amap: amap.apiKey ? "configured" : "missing",
+      tavily: tavily.apiKey ? "configured" : "missing"
     };
-  }
-
-  private statusOf(name: string): ConfigStatus {
-    return this.env[name] ? "configured" : "missing";
   }
 
   private positiveNumber(name: string, fallback: number): number {
     const value = Number(this.env[name]);
 
     return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private positiveInteger(name: string, fallback: number, maximum?: number): number {
+    const value = Math.floor(Number(this.env[name]));
+    if (!Number.isFinite(value) || value < 1) {
+      return fallback;
+    }
+    return maximum === undefined ? value : Math.min(value, maximum);
   }
 }
 

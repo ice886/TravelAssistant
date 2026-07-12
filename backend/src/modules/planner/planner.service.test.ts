@@ -76,6 +76,11 @@ describe("PlannerService", () => {
       expect.stringContaining("INSERT INTO itinerary_versions"),
       expect.arrayContaining(["trip-1", "run-1", "generated"])
     );
+    const researchQuery = vi.mocked(database.query).mock.calls.find(([sql]) =>
+      String(sql).includes("FROM research_sources")
+    );
+    expect(String(researchQuery?.[0])).toContain("status = 'completed'");
+    expect(String(researchQuery?.[0])).toContain("EXISTS");
   });
 
   it("does not call the LLM when research sources are missing", async () => {

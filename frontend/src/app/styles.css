@@ -12,6 +12,16 @@
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -251,6 +261,49 @@ button:disabled {
   gap: 12px;
   margin: 16px 0;
   padding: 14px;
+}
+
+.cache-notice,
+.degraded-notice {
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.cache-notice {
+  background: #e9f7ed;
+  border: 1px solid #afd7bd;
+  color: #195231;
+}
+
+.degraded-notice {
+  background: #fff7df;
+  border: 1px solid #e5ca72;
+  color: #66500d;
+}
+
+.degraded-notice p:last-child,
+.round-item p:last-child {
+  margin-bottom: 0;
+}
+
+.agent-rounds {
+  border-top: 1px solid #e0e7df;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.round-list {
+  display: grid;
+  gap: 10px;
+}
+
+.round-item {
+  background: #f7faf6;
+  border: 1px solid #dce3db;
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .login-recovery-heading {

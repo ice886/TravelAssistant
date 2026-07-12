@@ -85,6 +85,31 @@ export interface AgentRunCheck {
   message: string;
 }
 
+export type ResearchToolName =
+  | "xhs_search"
+  | "web_search"
+  | "poi_search"
+  | "get_weather"
+  | "get_route";
+
+export interface ResearchToolCallRecord {
+  round: number;
+  tool: ResearchToolName;
+  status: "completed" | "failed" | "skipped";
+  inputSummary: string;
+  observationSummary: string;
+  sourceCount: number;
+}
+
+export interface ResearchAgentProgress {
+  currentRound: number;
+  maxRounds: number;
+  cacheHit: boolean;
+  degraded: boolean;
+  degradationReasons: string[];
+  toolCalls: ResearchToolCallRecord[];
+}
+
 export interface AgentRun {
   id: string;
   tripId: string;
@@ -98,6 +123,7 @@ export interface AgentRun {
     tavily: AgentRunCheck;
     xiaohongshu: AgentRunCheck;
   };
+  progress: ResearchAgentProgress;
   sourceCount: number;
   createdAt: string;
   updatedAt: string;
@@ -207,7 +233,7 @@ export async function startResearch(tripId: string): Promise<AgentRun> {
     throw new Error(message ?? `研究任务启动失败：${response.status}`);
   }
 
-  return response.json();
+  return normalizeAgentRun(await response.json());
 }
 
 export async function getLatestResearchRun(tripId: string): Promise<AgentRun> {
@@ -218,7 +244,7 @@ export async function getLatestResearchRun(tripId: string): Promise<AgentRun> {
     throw new Error(message ?? `研究任务状态请求失败：${response.status}`);
   }
 
-  return response.json();
+  return normalizeAgentRun(await response.json());
 }
 
 export async function getResearchSources(tripId: string): Promise<ResearchSource[]> {
@@ -264,4 +290,49 @@ async function readErrorMessage(response: Response): Promise<string | null> {
   }
 
   return null;
+}
+
+function normalizeAgentRun(value: unknown): AgentRun {
+  const run = isRecord(value) ? value : {};
+  const rawProgress = isRecord(run.progress) ? run.progress : {};
+  const toolCalls = Array.isArray(rawProgress.toolCalls)
+    ? rawProgress.toolCalls.filter(isResearchToolCall)
+    : [];
+  const degradationReasons = Array.isArray(rawProgress.degradationReasons)
+    ? rawProgress.degradationReasons.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return {
+    ...(run as unknown as AgentRun),
+    progress: {
+      currentRound: nonNegativeInteger(rawProgress.currentRound) ?? 0,
+      maxRounds: positiveInteger(rawProgress.maxRounds) ?? 8,
+      cacheHit: rawProgress.cacheHit === true,
+      degraded: rawProgress.degraded === true,
+      degradationReasons,
+      toolCalls
+    }
+  };
+}
+
+function isResearchToolCall(value: unknown): value is ResearchToolCallRecord {
+  if (!isRecord(value)) return false;
+  return nonNegativeInteger(value.round) !== null
+    && typeof value.tool === "string"
+    && (value.status === "completed" || value.status === "failed" || value.status === "skipped")
+    && typeof value.inputSummary === "string"
+    && typeof value.observationSummary === "string"
+    && nonNegativeInteger(value.sourceCount) !== null;
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function positiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

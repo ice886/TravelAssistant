@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { generateItinerary, getXhsLoginQrcode, saveItinerary } from "./client";
+import {
+  generateItinerary,
+  getLatestResearchRun,
+  getResearchSources,
+  getXhsLoginQrcode,
+  saveItinerary,
+  startResearch
+} from "./client";
 
 describe("xhs login API", () => {
   afterEach(() => {
@@ -49,5 +56,42 @@ describe("itinerary API", () => {
     vi.stubGlobal("fetch", fetchMock);
     await saveItinerary("trip-1", content);
     expect(fetchMock).toHaveBeenCalledWith("/api/trips/trip-1/itineraries", expect.objectContaining({ method: "POST", body: JSON.stringify(content) }));
+  });
+});
+
+describe("research API", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("starts a background run and preserves progress fields", async () => {
+    const payload = {
+      id: "run-1",
+      status: "running",
+      progress: {
+        currentRound: 0,
+        maxRounds: 8,
+        cacheHit: false,
+        degraded: false,
+        degradationReasons: [],
+        toolCalls: []
+      }
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(startResearch("trip-1")).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith("/api/trips/trip-1/research", { method: "POST" });
+  });
+
+  it("reads latest run progress and current-run sources", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "run-1", progress: { cacheHit: true } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ id: "source-1", provider: "amap" }]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getLatestResearchRun("trip-1");
+    await getResearchSources("trip-1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/trips/trip-1/research-runs/latest");
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/trips/trip-1/research-sources");
   });
 });

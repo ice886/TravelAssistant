@@ -4,11 +4,13 @@ import { AppConfigService } from "../config/app-config.service";
 import {
   AmapPlace,
   AmapRouteEstimate,
+  AmapWeather,
   GeocodeRequest,
   GeoPoint,
   ProviderError,
   RouteEstimateRequest,
-  SearchPlacesRequest
+  SearchPlacesRequest,
+  WeatherRequest
 } from "./provider.types";
 import { assertConfigured, FetchFn, isRecord, numberValue, requestJson, stringValue } from "./provider-utils";
 
@@ -69,6 +71,7 @@ export class AmapProviderService {
       name: stringValue(item.formatted_address) ?? request.address,
       address: stringValue(item.formatted_address),
       city: stringValue(item.city),
+      adcode: stringValue(item.adcode),
       location: parseLocation(item.location),
       raw: item
     }));
@@ -82,13 +85,20 @@ export class AmapProviderService {
     assertConfigured("amap", Boolean(amapConfig.apiKey), "AMAP_API_KEY is not configured.");
 
     const strategy = request.strategy ?? "driving";
+    const path =
+      strategy === "walking"
+        ? "/direction/walking"
+        : strategy === "transit"
+          ? "/direction/transit/integrated"
+          : "/direction/driving";
     const payload = await requestJson(
       "amap",
       fetchFn,
-      this.buildUrl(strategy === "walking" ? "/direction/walking" : "/direction/driving", {
+      this.buildUrl(path, {
         key: amapConfig.apiKey,
         origin: formatPoint(request.origin),
-        destination: formatPoint(request.destination)
+        destination: formatPoint(request.destination),
+        city: request.city
       }),
       { method: "GET" },
       amapConfig.timeoutMs
@@ -96,7 +106,7 @@ export class AmapProviderService {
 
     assertAmapSuccess(payload);
 
-    return {
+    const estimate = {
       origin: request.origin,
       destination: request.destination,
       distanceMeters: readRouteNumber(payload, "distance"),
@@ -104,6 +114,68 @@ export class AmapProviderService {
       strategy,
       raw: payload
     };
+
+    if (estimate.distanceMeters === null && estimate.durationSeconds === null) {
+      throw new ProviderError("amap", "invalid_response", "Amap route response did not include an estimate.");
+    }
+
+    return estimate;
+  }
+
+  async getWeather(request: WeatherRequest, fetchFn: FetchFn = fetch): Promise<AmapWeather> {
+    const amapConfig = this.config.amap;
+    assertConfigured("amap", Boolean(amapConfig.apiKey), "AMAP_API_KEY is not configured.");
+
+    const adcode = await this.resolveWeatherAdcode(request.city, fetchFn);
+    const requestWeather = (extensions: "base" | "all") =>
+      requestJson(
+        "amap",
+        fetchFn,
+        this.buildUrl("/weather/weatherInfo", {
+          key: amapConfig.apiKey,
+          city: adcode,
+          extensions
+        }),
+        { method: "GET" },
+        amapConfig.timeoutMs
+      );
+
+    const [livePayload, forecastPayload] = await Promise.all([
+      requestWeather("base"),
+      requestWeather("all")
+    ]);
+    assertAmapSuccess(livePayload);
+    assertAmapSuccess(forecastPayload);
+
+    const live = normalizeLiveWeather(livePayload);
+    const forecasts = normalizeForecasts(forecastPayload);
+    if (!live && forecasts.length === 0) {
+      throw new ProviderError("amap", "invalid_response", "Amap weather response did not include weather data.");
+    }
+
+    return {
+      city: request.city,
+      adcode,
+      live,
+      forecasts,
+      raw: {
+        live: livePayload,
+        forecast: forecastPayload
+      }
+    };
+  }
+
+  private async resolveWeatherAdcode(city: string, fetchFn: FetchFn): Promise<string> {
+    if (/^\d{6}$/.test(city.trim())) {
+      return city.trim();
+    }
+
+    const matches = await this.geocode({ address: city, city }, fetchFn);
+    const adcode = matches.find((match) => match.adcode)?.adcode;
+    if (!adcode) {
+      throw new ProviderError("amap", "invalid_response", "Amap could not resolve a weather adcode.");
+    }
+    return adcode;
   }
 
   private buildUrl(path: string, params: Record<string, string | null | undefined>): string {
@@ -135,6 +207,7 @@ function normalizePlace(item: Record<string, unknown>): AmapPlace {
     name: stringValue(item.name) ?? "Unknown place",
     address: stringValue(item.address),
     city: stringValue(item.cityname),
+    adcode: stringValue(item.adcode),
     location: parseLocation(item.location),
     raw: item
   };
@@ -159,10 +232,61 @@ function formatPoint(point: GeoPoint): string {
 }
 
 function readRouteNumber(payload: unknown, key: "distance" | "duration"): number | null {
-  if (!isRecord(payload) || !isRecord(payload.route) || !Array.isArray(payload.route.paths)) {
+  if (!isRecord(payload) || !isRecord(payload.route)) {
     return null;
   }
 
-  const [firstPath] = payload.route.paths;
+  const candidates = Array.isArray(payload.route.paths)
+    ? payload.route.paths
+    : Array.isArray(payload.route.transits)
+      ? payload.route.transits
+      : [];
+  const [firstPath] = candidates;
   return isRecord(firstPath) ? numberValue(firstPath[key]) : null;
+}
+
+function normalizeLiveWeather(payload: unknown): AmapWeather["live"] {
+  if (!isRecord(payload) || !Array.isArray(payload.lives)) {
+    return null;
+  }
+
+  const live = payload.lives.find(isRecord);
+  if (!live) {
+    return null;
+  }
+
+  return {
+    province: stringValue(live.province),
+    city: stringValue(live.city),
+    weather: stringValue(live.weather),
+    temperatureCelsius: numberValue(live.temperature),
+    windDirection: stringValue(live.winddirection),
+    windPower: stringValue(live.windpower),
+    humidityPercent: numberValue(live.humidity),
+    reportTime: stringValue(live.reporttime)
+  };
+}
+
+function normalizeForecasts(payload: unknown): AmapWeather["forecasts"] {
+  if (!isRecord(payload) || !Array.isArray(payload.forecasts)) {
+    return [];
+  }
+
+  const forecast = payload.forecasts.find(isRecord);
+  if (!forecast || !Array.isArray(forecast.casts)) {
+    return [];
+  }
+
+  return forecast.casts.filter(isRecord).map((item) => ({
+    date: stringValue(item.date),
+    week: stringValue(item.week),
+    dayWeather: stringValue(item.dayweather),
+    nightWeather: stringValue(item.nightweather),
+    dayTemperatureCelsius: numberValue(item.daytemp),
+    nightTemperatureCelsius: numberValue(item.nighttemp),
+    dayWindDirection: stringValue(item.daywind),
+    nightWindDirection: stringValue(item.nightwind),
+    dayWindPower: stringValue(item.daypower),
+    nightWindPower: stringValue(item.nightpower)
+  }));
 }

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "uxcraft": {
+      "source": "Seance1723/UXCraft",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "0ad2be874d00abd07c653d455ce7e29ec98918cd965065925a4ef886527a6983"
+    }
+  }
+}

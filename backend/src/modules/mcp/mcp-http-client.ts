@@ -25,7 +25,10 @@ export class McpHttpClient {
   private nextId = 1;
   private sessionId: string | null = null;
 
-  constructor(private readonly endpoint: string) {}
+  constructor(
+    private readonly endpoint: string,
+    private readonly timeoutMs = 15000
+  ) {}
 
   async initialize(): Promise<void> {
     await this.request("initialize", {
@@ -75,10 +78,33 @@ export class McpHttpClient {
       headers["Mcp-Session-Id"] = this.sessionId;
     }
 
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Error(`MCP request timed out after ${this.timeoutMs}ms.`));
+      }, this.timeoutMs);
+    });
+    const requestPromise = this.sendRequest(payload, headers, controller.signal);
+
+    try {
+      return await Promise.race([requestPromise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeout!);
+    }
+  }
+
+  private async sendRequest(
+    payload: JsonRpcRequest,
+    headers: Record<string, string>,
+    signal: AbortSignal
+  ): Promise<unknown> {
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal
     });
 
     const responseSessionId = response.headers.get("Mcp-Session-Id");

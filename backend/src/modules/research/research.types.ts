@@ -32,6 +32,7 @@ export interface AgentRun {
   summary: string | null;
   errorMessage: string | null;
   checks: AgentRunChecks;
+  progress: ResearchAgentProgress;
   sourceCount: number;
   createdAt: string;
   updatedAt: string;
@@ -46,13 +47,12 @@ export interface AgentRunRow {
   summary: string | null;
   error_message: string | null;
   checks: AgentRunChecks | string;
+  progress?: ResearchAgentProgress | string;
   source_count?: string | number;
   created_at: Date;
   updated_at: Date;
   completed_at: Date | null;
 }
-
-export type ResearchSourceProvider = "xiaohongshu" | "amap" | "tavily";
 
 export interface ResearchSource {
   id: string;
@@ -65,6 +65,11 @@ export interface ResearchSource {
   createdAt: string;
 }
 
+export interface ResearchCacheRow {
+  sources: unknown | string;
+  expires_at: Date;
+}
+
 export interface ResearchSourceRow {
   id: string;
   run_id: string;
@@ -75,3 +80,4 @@ export interface ResearchSourceRow {
   metadata: Record<string, unknown> | string;
   created_at: Date;
 }
+import { ResearchAgentProgress, ResearchSourceProvider } from "./research-agent.types";

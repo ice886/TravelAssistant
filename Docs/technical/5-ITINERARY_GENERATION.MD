@@ -20,7 +20,7 @@
 ## 3. 生成链路
 
 1. 校验 trip 存在。
-2. 读取最新 agent run 对应的 `research_sources`；无来源时返回 400。
+2. 读取最新 `completed` 且存在来源的 agent run 对应 `research_sources`；无来源时返回 400。新的 running run 不会遮蔽上一份已完成证据。
 3. 将受限来源摘要与 trip 输入传给 `completeJson()`，同时提供 JSON Schema。
 4. 服务端再次校验必填字段、数值、数组及来源 ID 白名单；模型生成的未知来源 ID 会被剔除，禁止伪造引用入库且不阻断其余有效行程。
 5. 校验成功后写入新版本；失败不会落库。
@@ -32,3 +32,5 @@
 - `POST /api/trips/:id/itineraries`
 
 保存编辑内容不会覆盖旧版本，而是创建新的 `edited` 版本。
+
+Research 缓存命中时会为本次 run 物化新的来源 UUID，因此 Planner 仍引用当前 `research_sources.id`，不会复用旧 run 的外键语义。

@@ -40,10 +40,46 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         summary text,
         error_message text,
         checks jsonb NOT NULL DEFAULT '{}'::jsonb,
+        progress jsonb NOT NULL DEFAULT '{}'::jsonb,
         created_at timestamptz NOT NULL DEFAULT now(),
         updated_at timestamptz NOT NULL DEFAULT now(),
         completed_at timestamptz
       )
+    `);
+
+    await this.query(`
+      ALTER TABLE agent_runs
+      ADD COLUMN IF NOT EXISTS progress jsonb NOT NULL DEFAULT '{}'::jsonb
+    `);
+
+    await this.query(`
+      WITH ranked_running AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (PARTITION BY trip_id ORDER BY created_at DESC, id DESC) AS position
+        FROM agent_runs
+        WHERE status = 'running'
+      )
+      UPDATE agent_runs
+      SET
+        status = 'failed',
+        stage = 'completed',
+        summary = '重复运行已在启动迁移中终止。',
+        error_message = 'DUPLICATE_ACTIVE_RUN',
+        updated_at = now(),
+        completed_at = now()
+      WHERE id IN (SELECT id FROM ranked_running WHERE position > 1)
+    `);
+
+    await this.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS agent_runs_one_running_per_trip_idx
+      ON agent_runs (trip_id)
+      WHERE status = 'running'
+    `);
+
+    await this.query(`
+      CREATE INDEX IF NOT EXISTS agent_runs_trip_created_idx
+      ON agent_runs (trip_id, created_at DESC, id DESC)
     `);
 
     await this.query(`
@@ -60,6 +96,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     `);
 
     await this.query(`
+      CREATE INDEX IF NOT EXISTS research_sources_run_created_idx
+      ON research_sources (run_id, created_at ASC)
+    `);
+
+    await this.query(`
       CREATE TABLE IF NOT EXISTS itinerary_versions (
         id uuid PRIMARY KEY,
         trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
@@ -71,6 +112,23 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         UNIQUE (trip_id, version)
       )
     `);
+
+    await this.query(`
+      CREATE TABLE IF NOT EXISTS research_cache (
+        id uuid PRIMARY KEY,
+        cache_key text NOT NULL UNIQUE,
+        sources jsonb NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL
+      )
+    `);
+
+    await this.query(`
+      CREATE INDEX IF NOT EXISTS research_cache_expires_at_idx
+      ON research_cache (expires_at)
+    `);
+
+    await this.query(`DELETE FROM research_cache WHERE expires_at <= now()`);
   }
 
   async onModuleDestroy(): Promise<void> {

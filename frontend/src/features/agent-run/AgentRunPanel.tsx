@@ -10,6 +10,7 @@ import {
   Trip,
   XhsLoginQrcodeResponse
 } from "../../api/client";
+import { researchToolLabel, researchToolStatusLabel } from "./researchPresentation";
 
 const steps: Array<{
   key: keyof AgentRun["checks"];
@@ -18,11 +19,13 @@ const steps: Array<{
   { key: "llm", label: "检查 LLM 配置" },
   { key: "amap", label: "检查高德地图配置" },
   { key: "tavily", label: "检查 Tavily 配置" },
-  { key: "xiaohongshu", label: "等待小红书登录状态" }
+  { key: "xiaohongshu", label: "检查小红书可用性" }
 ];
 
 interface AgentRunPanelProps {
   onXhsStatusChange: (status: Awaited<ReturnType<typeof getXhsStatus>>) => void;
+  onRunChange: (run: AgentRun | null) => void;
+  run: AgentRun | null;
   trip: Trip | null;
 }
 
@@ -78,8 +81,7 @@ function shouldPoll(run: AgentRun | null): boolean {
   return run?.status === "running";
 }
 
-export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
-  const [run, setRun] = useState<AgentRun | null>(null);
+export function AgentRunPanel({ onRunChange, onXhsStatusChange, run, trip }: AgentRunPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [qrcode, setQrcode] = useState<XhsLoginQrcodeResponse | null>(null);
@@ -87,31 +89,41 @@ export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
   const [isCheckingLogin, setIsCheckingLogin] = useState(false);
 
   useEffect(() => {
-    setRun(null);
     setError(null);
     setQrcode(null);
   }, [trip?.id]);
 
   useEffect(() => {
-    if (!trip || !shouldPoll(run)) {
+    const tripId = trip?.id;
+    const runId = run?.id;
+    if (!tripId || !runId || !shouldPoll(run) || run.tripId !== tripId) {
       return;
     }
 
-    const interval = window.setInterval(() => {
-      getLatestResearchRun(trip.id)
-        .then((payload) => {
-          setRun(payload);
+    let active = true;
+    let timeoutId: number | null = null;
+    const poll = async () => {
+      try {
+        const payload = await getLatestResearchRun(tripId);
+        if (active && payload.tripId === tripId && payload.id === runId) {
+          onRunChange(payload);
           setError(null);
-        })
-        .catch((pollError: unknown) => {
+        }
+      } catch (pollError) {
+        if (active) {
           setError(pollError instanceof Error ? pollError.message : "研究状态请求失败");
-        });
-    }, 3000);
+        }
+      } finally {
+        if (active) timeoutId = window.setTimeout(poll, 3000);
+      }
+    };
+    timeoutId = window.setTimeout(poll, 3000);
 
     return () => {
-      window.clearInterval(interval);
+      active = false;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
     };
-  }, [run, trip]);
+  }, [onRunChange, run?.id, run?.status, run?.tripId, trip?.id]);
 
   async function handleStartResearch() {
     if (!trip) {
@@ -123,7 +135,7 @@ export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
 
     try {
       const nextRun = await startResearch(trip.id);
-      setRun(nextRun);
+      onRunChange(nextRun);
     } catch (startError: unknown) {
       setError(startError instanceof Error ? startError.message : "研究任务启动失败");
     } finally {
@@ -177,7 +189,7 @@ export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
       }
 
       const nextRun = await startResearch(trip.id);
-      setRun(nextRun);
+      onRunChange(nextRun);
       setQrcode(null);
     } catch (checkError: unknown) {
       setError(checkError instanceof Error ? checkError.message : "登录状态检查失败");
@@ -192,13 +204,22 @@ export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
         <h2>Agent 运行</h2>
         <span className="pill">{formatRunStatus(run)}</span>
       </div>
-      <button disabled={!trip || isStarting} type="button" onClick={handleStartResearch}>
+      <button disabled={!trip || isStarting || run?.status === "running"} type="button" onClick={handleStartResearch}>
         {isStarting ? "启动中..." : "启动研究"}
       </button>
       {trip ? <p className="muted">当前计划：{trip.destination}</p> : <p className="muted">先创建旅行计划。</p>}
-      {run?.summary ? <p className="success-text">{run.summary}</p> : null}
-      {run?.errorMessage ? <p className="error-text">{run.errorMessage}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
+      {run?.summary ? <p className={run.status === "failed" || run.status === "blocked_config" ? "error-text" : "success-text"}>{run.summary}</p> : null}
+      {run?.errorMessage ? <p className="error-text" role="alert">{run.errorMessage}</p> : null}
+      {error ? <p className="error-text" role="alert">{error}</p> : null}
+      {run?.progress.cacheHit ? (
+        <p className="cache-notice" role="status">命中研究缓存，本次未执行 Agent 工具循环。</p>
+      ) : null}
+      {run?.progress.degraded ? (
+        <div className="degraded-notice" role="status">
+          <strong>部分来源不可用，已使用备用来源继续。</strong>
+          {run.progress.degradationReasons.map((reason) => <p key={reason}>{reason}</p>)}
+        </div>
+      ) : null}
       {run?.status === "waiting_login" ? (
         <div className="login-recovery">
           <div className="login-recovery-heading">
@@ -241,6 +262,42 @@ export function AgentRunPanel({ onXhsStatusChange, trip }: AgentRunPanelProps) {
           </div>
         ) : null}
       </div>
+      {run && !run.progress.cacheHit ? (
+        <div className="agent-rounds">
+          <div className="panel-heading">
+            <h3>工具执行记录</h3>
+            <span className="pill">
+              {run.progress.currentRound}/{run.progress.maxRounds} 轮
+            </span>
+          </div>
+          {run.progress.toolCalls.length > 0 ? (
+            <div className="round-list">
+              {run.progress.toolCalls.map((call) => (
+                <article className="round-item" key={`${call.round}-${call.tool}-${call.inputSummary}`}>
+                  <div className="source-result-heading">
+                    <strong>第 {call.round} 轮 · {researchToolLabel(call.tool)}</strong>
+                    <span className={call.status === "failed" ? "pill status-warn" : "pill"}>
+                      {researchToolStatusLabel(call.status)}
+                    </span>
+                  </div>
+                  <p className="muted">{call.inputSummary}</p>
+                  <p>{call.observationSummary}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">
+              {run.status === "running" ? "等待 Agent 选择首个工具。" : "本次运行未执行研究工具。"}
+            </p>
+          )}
+        </div>
+      ) : null}
+      {run ? (
+        <span className="visually-hidden" aria-live="polite">
+          {formatRunStatus(run)}，第 {run.progress.currentRound} / {run.progress.maxRounds} 轮，
+          已记录 {run.sourceCount} 条来源。
+        </span>
+      ) : null}
     </section>
   );
 }

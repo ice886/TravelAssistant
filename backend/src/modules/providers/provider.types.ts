@@ -24,6 +24,7 @@ export interface AmapPlace {
   name: string;
   address: string | null;
   city: string | null;
+  adcode: string | null;
   location: GeoPoint | null;
   raw: unknown;
 }
@@ -34,6 +35,38 @@ export interface AmapRouteEstimate {
   distanceMeters: number | null;
   durationSeconds: number | null;
   strategy: string;
+  raw: unknown;
+}
+
+export interface AmapLiveWeather {
+  province: string | null;
+  city: string | null;
+  weather: string | null;
+  temperatureCelsius: number | null;
+  windDirection: string | null;
+  windPower: string | null;
+  humidityPercent: number | null;
+  reportTime: string | null;
+}
+
+export interface AmapForecastDay {
+  date: string | null;
+  week: string | null;
+  dayWeather: string | null;
+  nightWeather: string | null;
+  dayTemperatureCelsius: number | null;
+  nightTemperatureCelsius: number | null;
+  dayWindDirection: string | null;
+  nightWindDirection: string | null;
+  dayWindPower: string | null;
+  nightWindPower: string | null;
+}
+
+export interface AmapWeather {
+  city: string;
+  adcode: string;
+  live: AmapLiveWeather | null;
+  forecasts: AmapForecastDay[];
   raw: unknown;
 }
 
@@ -51,7 +84,12 @@ export interface GeocodeRequest {
 export interface RouteEstimateRequest {
   origin: GeoPoint;
   destination: GeoPoint;
-  strategy?: "walking" | "driving";
+  strategy?: "walking" | "driving" | "transit";
+  city?: string;
+}
+
+export interface WeatherRequest {
+  city: string;
 }
 
 export interface TavilySearchRequest {

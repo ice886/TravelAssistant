@@ -21,6 +21,7 @@ services:
       WEB_ORIGIN: http://localhost:${WEB_PORT:-5173}
       DATABASE_URL: ${DATABASE_URL:-postgresql://travel_assistant:change-me@postgres:5432/travel_assistant}
       XHS_MCP_URL: ${XHS_MCP_URL:-http://xiaohongshu-mcp:18060/mcp}
+      XHS_MCP_TIMEOUT_MS: ${XHS_MCP_TIMEOUT_MS:-15000}
       XHS_READONLY_TOOLS: ${XHS_READONLY_TOOLS:-check_login_status,get_login_qrcode,list_feeds,search_feeds,get_feed_detail,user_profile}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai-compatible}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
@@ -28,6 +29,9 @@ services:
       LLM_MODEL: ${LLM_MODEL:-}
       AMAP_API_KEY: ${AMAP_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      RESEARCH_MAX_ROUNDS: ${RESEARCH_MAX_ROUNDS:-8}
+      RESEARCH_CACHE_TTL_SECONDS: ${RESEARCH_CACHE_TTL_SECONDS:-604800}
+      RESEARCH_STALE_AFTER_SECONDS: ${RESEARCH_STALE_AFTER_SECONDS:-3600}
     ports:
       - "${API_PORT:-3000}:3000"
 
