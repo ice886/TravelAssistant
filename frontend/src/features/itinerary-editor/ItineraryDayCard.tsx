@@ -17,9 +17,10 @@ export function ItineraryDayCard({
 }: ItineraryDayCardProps) {
   return (
     <article className="day-card">
-      <h3>
-        第 {day.day} 天 · {day.title}
-      </h3>
+      <div className="day-heading">
+        <span className="day-number">DAY {String(day.day).padStart(2, "0")}</span>
+        <h3>{day.title}</h3>
+      </div>
 
       {day.activities.map((activity, activityIndex) => (
         <ActivityEditor

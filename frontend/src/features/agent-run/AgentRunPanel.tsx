@@ -199,15 +199,18 @@ export function AgentRunPanel({ onRunChange, onXhsStatusChange, run, trip }: Age
   }
 
   return (
-    <section className="panel">
+    <section className="panel panel--research" aria-labelledby="agent-run-title">
       <div className="panel-heading">
-        <h2>Agent 运行</h2>
+        <div>
+          <p className="eyebrow">多来源研究</p>
+          <h2 id="agent-run-title">让 Agent 找到可靠线索</h2>
+        </div>
         <span className="pill">{formatRunStatus(run)}</span>
       </div>
-      <button disabled={!trip || isStarting || run?.status === "running"} type="button" onClick={handleStartResearch}>
-        {isStarting ? "启动中..." : "启动研究"}
+      <button className="primary-button full-width-button" disabled={!trip || isStarting || run?.status === "running"} type="button" onClick={handleStartResearch}>
+        {isStarting ? "正在召集旅行线索…" : run?.status === "completed" ? "重新收集证据" : "开始收集证据"}
       </button>
-      {trip ? <p className="muted">当前计划：{trip.destination}</p> : <p className="muted">先创建旅行计划。</p>}
+      {trip ? <p className="context-line">正在为 <strong>{trip.destination}</strong> 准备研究</p> : <p className="empty-hint">创建旅行画像后，这里会开始收集真实旅行经验与地点信息。</p>}
       {run?.summary ? <p className={run.status === "failed" || run.status === "blocked_config" ? "error-text" : "success-text"}>{run.summary}</p> : null}
       {run?.errorMessage ? <p className="error-text" role="alert">{run.errorMessage}</p> : null}
       {error ? <p className="error-text" role="alert">{error}</p> : null}
@@ -243,7 +246,7 @@ export function AgentRunPanel({ onRunChange, onXhsStatusChange, run, trip }: Age
           </button>
         </div>
       ) : null}
-      <div className="timeline">
+      <div className="timeline" aria-label="服务检查">
         {steps.map((step) => {
           const check = run?.checks[step.key];
 

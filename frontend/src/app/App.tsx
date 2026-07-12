@@ -62,6 +62,7 @@ export function App() {
   const [currentTrip, setCurrentTrip] = useState<Trip | null>(null);
   const [currentRun, setCurrentRun] = useState<AgentRun | null>(null);
   const currentTripIdRef = useRef<string | null>(null);
+  const activeStep = currentRun?.status === "completed" ? 3 : currentRun ? 2 : currentTrip ? 2 : 1;
 
   const handleRunChange = useCallback((run: AgentRun | null) => {
     if (!run || run.tripId === currentTripIdRef.current) {
@@ -108,9 +109,12 @@ export function App() {
   return (
     <main className="shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">TravelAssistant</p>
-          <h1>旅行规划工作台</h1>
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">旅</span>
+          <div>
+            <p className="eyebrow">TravelAssistant</p>
+            <p className="brand-name">旅途灵感工作台</p>
+          </div>
         </div>
         <div className="status-strip" aria-label="服务状态">
           <span className={healthError ? "status-bad" : "status-good"}>
@@ -124,6 +128,28 @@ export function App() {
           </span>
         </div>
       </header>
+
+      <section className="hero" aria-labelledby="workspace-title">
+        <div className="hero-copy">
+          <p className="eyebrow">从灵感到可出发的行程</p>
+          <h1 id="workspace-title">把想去的地方，<span>变成一段好旅程。</span></h1>
+          <p className="hero-description">
+            告诉我们你的旅行偏好。Agent 会综合真实经验、地图与网页信息，与你一起完成可编辑的行程草稿。
+          </p>
+        </div>
+        <ol className="journey-steps" aria-label="规划进度">
+          {["描述旅程", "收集证据", "编辑行程"].map((label, index) => {
+            const step = index + 1;
+            const state = step < activeStep ? "complete" : step === activeStep ? "active" : "upcoming";
+            return (
+              <li className={`journey-step journey-step--${state}`} key={label} aria-current={state === "active" ? "step" : undefined}>
+                <span className="step-number">{state === "complete" ? "✓" : step}</span>
+                <span>{label}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
 
       <section className="workspace">
         <aside className="sidebar">
@@ -142,7 +168,7 @@ export function App() {
             trip={currentTrip}
           />
         </aside>
-        <section className="main-column">
+        <section className="main-column" aria-label="研究结果与行程">
           <SourcesPanel run={currentRun} trip={currentTrip} />
           <ItineraryEditor trip={currentTrip} />
         </section>

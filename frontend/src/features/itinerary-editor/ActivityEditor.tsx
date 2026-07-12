@@ -15,11 +15,11 @@ export function ActivityEditor({ activity, currency, onChange }: ActivityEditorP
           value={activity.time}
           onChange={(event) => onChange({ time: event.target.value })}
         />
-        <strong>{activity.title}</strong>
+        <strong className="activity-title">{activity.title}</strong>
       </div>
 
-      <p>
-        {activity.location} · {activity.transport} · {currency} {activity.estimatedCost}
+      <p className="activity-meta">
+        <span>{activity.location}</span><span>{activity.transport}</span><span>{currency} {activity.estimatedCost}</span>
       </p>
 
       <textarea

@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { AgentRun, getResearchSources, ResearchSource, Trip } from "../../api/client";
-import { safeSourceUrl, sourceProviderLabel } from "./sourcePresentation";
+import {
+  safeSourceUrl,
+  shouldDisplaySourceSummary,
+  simplifyChinese
+} from "./sourcePresentation";
 
 const sourceTypes = [
   {
@@ -58,9 +62,13 @@ export function SourcesPanel({ trip, run }: { trip: Trip | null; run: AgentRun |
   }, [run?.id, run?.status, run?.tripId, trip?.id]);
 
   return (
-    <section className="panel">
+    <section className="panel panel--sources" aria-labelledby="sources-title">
       <div className="panel-heading">
-        <h2>来源证据</h2>
+        <div>
+          <p className="eyebrow">研究资料库</p>
+          <h2 id="sources-title">每条建议，都有迹可循</h2>
+          <p className="muted">融合旅行者经验、地点数据与公开网页信息。</p>
+        </div>
         <div className="button-row">
           {run?.progress.cacheHit ? <span className="pill status-good">缓存来源</span> : null}
           <span className="pill">{sources.length} 条</span>
@@ -75,27 +83,39 @@ export function SourcesPanel({ trip, run }: { trip: Trip | null; run: AgentRun |
         ))}
       </div>
       {error ? <p className="error-text" role="alert">{error}</p> : null}
+      {!run ? <p className="empty-hint">完成旅行画像并启动研究后，证据会陆续出现在这里。</p> : null}
+      {run?.status === "running" && sources.length === 0 ? <p className="loading-hint" role="status">Agent 正在沿途寻找第一批线索…</p> : null}
       {sources.length > 0 ? (
         <div className="source-results">
           {sources.map((source) => (
-            <article className="source-result" key={source.id}>
-              <div className="source-result-heading">
-                <span className="pill">{sourceProviderLabel(source)}</span>
-                {safeSourceUrl(source.url) ? (
-                  <a
-                    aria-label={`打开来源：${source.title}`}
-                    href={safeSourceUrl(source.url) ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >打开来源</a>
-                ) : null}
-              </div>
-              <h3>{source.title}</h3>
-              {source.snippet ? <p className="muted">{source.snippet}</p> : null}
-            </article>
+            <SourceResult key={source.id} source={source} />
           ))}
         </div>
       ) : null}
     </section>
+  );
+}
+
+function SourceResult({ source }: { source: ResearchSource }) {
+  const title = simplifyChinese(source.title);
+  const summary = simplifyChinese(source.snippet) || "该来源暂未提供摘要。";
+  const url = safeSourceUrl(source.url);
+  const showSummary = shouldDisplaySourceSummary(source);
+
+  return (
+    <article className="source-result">
+      <div className="source-result-heading">
+        <h3>{title}</h3>
+        {url ? (
+          <a
+            aria-label={`查看原始来源：${title}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >查看原始来源 <span aria-hidden="true">↗</span></a>
+        ) : null}
+      </div>
+      {showSummary ? <p className="source-summary">{summary}</p> : null}
+    </article>
   );
 }

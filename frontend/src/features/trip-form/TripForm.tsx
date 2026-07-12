@@ -45,16 +45,23 @@ export function TripForm({ onTripCreated }: TripFormProps) {
   }
 
   return (
-    <section className="panel">
-      <h2>创建旅行计划</h2>
+    <section className="panel panel--form" aria-labelledby="trip-form-title">
+      <div className="section-intro">
+        <span className="section-index" aria-hidden="true">01</span>
+        <div>
+          <p className="eyebrow">旅行画像</p>
+          <h2 id="trip-form-title">这次想去哪里？</h2>
+          <p className="muted">先给一个大致方向，稍后仍可继续调整。</p>
+        </div>
+      </div>
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
           目的地
-          <input name="destination" placeholder="杭州" required />
+          <input autoComplete="off" name="destination" placeholder="例如：杭州、京都或冰岛南岸" required />
         </label>
         <label>
           天数
-          <input min="1" name="days" placeholder="3" required type="number" />
+          <input inputMode="numeric" min="1" name="days" placeholder="3" required type="number" />
         </label>
         <label>
           兴趣偏好
@@ -84,13 +91,13 @@ export function TripForm({ onTripCreated }: TripFormProps) {
           人数
           <input defaultValue="1" min="1" name="travelerCount" type="number" />
         </label>
-        <button disabled={isSubmitting} type="submit">
-          {isSubmitting ? "创建中..." : "创建计划"}
+        <button className="primary-button form-submit" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "正在整理你的旅行…" : "开始规划旅程"}
         </button>
         {createdTrip ? (
-          <p className="success-text">已创建 {createdTrip.destination} 旅行计划，当前为草稿状态。</p>
+          <p className="success-text" role="status">{createdTrip.destination} 已准备好，下一步可以收集旅行证据。</p>
         ) : null}
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">没能创建计划。{error}，请检查后再试一次。</p> : null}
       </form>
     </section>
   );

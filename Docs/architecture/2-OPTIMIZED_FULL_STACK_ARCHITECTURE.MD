@@ -4,7 +4,7 @@
 > 创建日期：2026-07-12
 > 基于：`BACKEND&FRONTEND_ARCHITECTURE.MD`（v1 基线保留，不删除）
 > 背景：参考 hello-agents trip-planner 项目及网络最佳实践，对研究管道、Provider 层、前端体验进行系统性优化。
-> 实施状态：Research ReAct、研究缓存、高德天气/路线已落地；LLM fallback、Planner 路线注入、地图、导出、Zustand/React Query 与全局错误过滤器仍为后续目标。
+> 实施状态：Research ReAct、研究缓存、高德天气/路线、前端基础体验重设计已落地；LLM fallback、Planner 路线注入、地图、导出、Zustand/React Query 与全局错误过滤器仍为后续目标。
 
 ---
 
@@ -230,9 +230,10 @@ frontend/
 
 ### 9.2 UI 重新设计
 
-- 引入统一设计语言（色彩系统、字体、间距规范）
-- 组件库：保留现有基础组件，全面重构样式
-- 响应式布局支持中等屏幕（1280px+）
+- 已引入统一的暖色旅行工作台设计语言，使用语义化色彩、字体、间距、圆角、阴影和状态 Token。
+- 保留无第三方组件库的 React 基础组件，通过三阶段导航表达“描述旅程 → 收集证据 → 编辑行程”。
+- Research 的等待、缓存、降级、失败和完成状态使用一致的反馈层级与可恢复文案。
+- 响应式布局覆盖桌面、平板与 320px+ 移动端；触摸目标、键盘焦点、对比度和 reduced-motion 以 WCAG 2.2 AA 基础要求为约束。
 
 ### 9.3 状态管理
 

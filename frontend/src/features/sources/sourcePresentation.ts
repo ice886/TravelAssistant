@@ -1,4 +1,5 @@
 import { ResearchSource } from "../../api/client";
+import { sify } from "chinese-conv";
 
 export function sourceProviderLabel(source: ResearchSource): string {
   if (source.provider === "xiaohongshu") return "小红书";
@@ -19,4 +20,12 @@ export function safeSourceUrl(value: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+export function simplifyChinese(value: string | null | undefined): string {
+  return sify(value?.trim() || "");
+}
+
+export function shouldDisplaySourceSummary(source: ResearchSource): boolean {
+  return source.provider !== "tavily";
 }

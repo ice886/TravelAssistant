@@ -72,10 +72,11 @@ export function ItineraryEditor({ trip }: ItineraryEditorProps) {
   }
 
   return (
-    <section className="panel">
+    <section className="panel panel--itinerary" aria-labelledby="itinerary-title">
       <div className="panel-heading">
         <div>
-          <h2>行程编辑</h2>
+          <p className="eyebrow">可编辑行程</p>
+          <h2 id="itinerary-title">把线索串成一段旅程</h2>
           {itinerary && (
             <span className="muted">
               版本 {itinerary.version} · {formatVersionSource(itinerary.source)}
@@ -84,11 +85,11 @@ export function ItineraryEditor({ trip }: ItineraryEditorProps) {
         </div>
 
         <div className="button-row">
-          <button disabled={!trip || busy} onClick={generate}>
+          <button className="primary-button" disabled={!trip || busy} onClick={generate} type="button">
             {generationButtonLabel(busy, Boolean(itinerary))}
           </button>
           {itinerary && (
-            <button className="secondary-button" disabled={busy} onClick={save}>
+            <button className="secondary-button" disabled={busy} onClick={save} type="button">
               保存新版本
             </button>
           )}
@@ -96,7 +97,8 @@ export function ItineraryEditor({ trip }: ItineraryEditorProps) {
       </div>
 
       <EmptyState trip={trip} itinerary={itinerary} error={error} />
-      {error && <p className="error-text">{error}</p>}
+      {busy && <p className="loading-hint" role="status">正在整理地点、时间与预算，请稍候…</p>}
+      {error && <p className="error-text" role="alert">暂时没能完成操作。{error}</p>}
       {itinerary && (
         <ItineraryForm itinerary={itinerary} onContentChange={updateContent} />
       )}
@@ -161,11 +163,11 @@ function EmptyState({
   error: string | null;
 }) {
   if (!trip) {
-    return <p className="muted">请先创建旅行计划并完成来源研究。</p>;
+    return <p className="empty-hint">先描述想去的地方，再完成来源研究。你的行程草稿会在这里展开。</p>;
   }
 
   if (!itinerary && !error) {
-    return <p className="muted">来源研究完成后，点击“生成行程”创建首版草稿。</p>;
+    return <p className="empty-hint">线索准备好后，点击“生成行程”，我们会为你整理第一版可编辑草稿。</p>;
   }
 
   return null;
