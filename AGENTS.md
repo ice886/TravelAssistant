@@ -2,6 +2,14 @@
 
 研究 Agent 系统的开发协作协议。本文件是开发流程与文档协议。
 
+## 架构基线
+
+当前架构基线文档：`Docs/architecture/2-OPTIMIZED_FULL_STACK_ARCHITECTURE.MD`（2026-07-12）
+
+> v1 文档 `Docs/architecture/1-BACKEND&FRONTEND_ARCHITECTURE.MD` 保留作历史参考，新需求以 v2 为准。
+
+---
+
 ## 需求处理流程协议
 
 当用户提出具体开发需求时，先判定任务类型为 `plan`（方案/开发需求）或 `fix`（问题修复），并按对应流程执行。
