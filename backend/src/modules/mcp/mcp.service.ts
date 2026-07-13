@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 
-import { AppConfigService } from "../config/app-config.service";
-import { SafetyService } from "../safety/safety.service";
+import { AppConfigService } from "../infrastructure/config/app-config.service";
+import { SafetyService } from "./safety.service";
 import { McpHttpClient, McpTool } from "./mcp-http-client";
 import {
   XhsLoginQrcodeImage,

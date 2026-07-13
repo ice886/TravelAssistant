@@ -1,13 +1,10 @@
 import { Module } from "@nestjs/common";
 
-import { SafetyModule } from "../safety/safety.module";
-import { McpController } from "./mcp.controller";
 import { McpService } from "./mcp.service";
+import { SafetyService } from "./safety.service";
 
 @Module({
-  imports: [SafetyModule],
-  controllers: [McpController],
-  providers: [McpService],
+  providers: [SafetyService, McpService],
   exports: [McpService]
 })
 export class McpModule {}

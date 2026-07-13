@@ -8,12 +8,15 @@ Research 模块将旅行需求转换为可追踪的证据来源：创建 run 后
 
 ## 2. 模块职责
 
-`backend/src/modules/research/`：
+`backend/src/modules/agent-core/`、`backend/src/modules/agents/`、`backend/src/modules/workflows/` 与 `backend/src/modules/persistence/`：
 
-- `research.service.ts`：创建 run、后台启动、配置预检、来源持久化和终态处理。
-- `research-agent.service.ts`：执行最多 8 轮的决策 → 工具 → 观察循环；去重调用和来源；不保存模型 Thought、prompt 或原始响应。
+- `research.workflow.ts`：创建 run、后台启动、配置预检、Agent 执行和终态处理。
+- `agent-runner.service.ts`：执行通用 Agent 的最多 8 轮决策 → 工具 → 观察循环，处理重复调用、工具失败降级、进度回调和 finish/轮次上限。
+- `research.agent.ts`：实现 Research prompt、决策 Schema、领域校验和来源 artifacts 清洗去重；不保存模型 Thought、prompt 或原始响应。
 - `research-agent.validator.ts`：校验 decision 联合类型、工具白名单和每类工具参数，拒绝额外字段。
-- `research-tools.service.ts`：将 `xhs_search`、`web_search`、`poi_search`、`get_weather`、`get_route` 映射到 MCP/provider。
+- `agents/research/tools/*.tool.ts`：将 `xhs_search`、`web_search`、`poi_search`、`get_weather`、`get_route` 分别映射到 MCP/provider。
+- `agents/research/research-tool.registrar.ts`：在模块初始化时将 Research 工具注册到 `ToolRegistry`。
+- `persistence/agent-run.repository.ts`、`research-source.repository.ts`：负责 run/source SQL 和行映射。
 - `research.types.ts`、`research-agent.types.ts`：API、持久化、工具与进度类型。
 
 ## 3. 工具契约与安全边界
@@ -31,6 +34,8 @@ Research 模块将旅行需求转换为可追踪的证据来源：创建 run 后
 模型返回 `call_tool` 或 `finish`。JSON parse 成功不代表可信，服务端仍会执行严格运行时校验；不可用工具、非法枚举、空字符串和额外字段都会被拒绝。第三方标题与摘要只以截断后的不可信数据形式进入下一轮 prompt，不执行其中的指令。
 
 每个工具最多持久化 5 条来源。标题限制 300 字符，摘要限制 2000 字符；XHS `xsecToken`、provider raw response、API key、prompt 和 Thought 均不写入数据库或前端。
+
+通用 `AgentResult.artifacts` 不携带领域假设；Research 将其解释为 `ResearchSourceDraft[]`，并在 `ResearchAgentContext` 中维护本轮来源去重键。
 
 ## 4. 执行与降级
 

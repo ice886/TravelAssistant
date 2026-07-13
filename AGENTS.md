@@ -4,9 +4,9 @@
 
 ## 架构基线
 
-当前架构基线文档：`Docs/architecture/2-OPTIMIZED_FULL_STACK_ARCHITECTURE.MD`（2026-07-12）
+当前架构基线文档：`Docs/architecture/3-AGENT_FIRST_ARCHITECTURE`（2026-07-12）
 
-> v1 文档 `Docs/architecture/1-BACKEND&FRONTEND_ARCHITECTURE.MD` 保留作历史参考，新需求以 v2 为准。
+> v1 文档 `Docs/architecture/1-BACKEND&FRONTEND_ARCHITECTURE.MD` 保留作历史参考，新需求以 v3 为准。
 
 ---
 

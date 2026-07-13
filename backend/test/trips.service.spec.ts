@@ -1,8 +1,8 @@
 import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 
-import { DatabaseService } from "../src/modules/database/database.service";
-import { TripsService } from "../src/modules/trips/trips.service";
+import { DatabaseService } from "../src/modules/infrastructure/database/database.service";
+import { TripRepository } from "../src/modules/persistence/trip.repository";
 
 function createService() {
   const database = {
@@ -26,10 +26,10 @@ function createService() {
     })
   } as unknown as DatabaseService;
 
-  return new TripsService(database);
+  return new TripRepository(database);
 }
 
-describe("TripsService", () => {
+describe("TripRepository", () => {
   it("creates a trip from valid input", async () => {
     const service = createService();
 

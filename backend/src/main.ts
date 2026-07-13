@@ -8,7 +8,7 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 
 import { AppModule } from "./app.module";
-import { AppConfigService } from "./modules/config/app-config.service";
+import { AppConfigService } from "./modules/infrastructure/config/app-config.service";
 
 const workspaceEnvPath = resolve(process.cwd(), ".env");
 const parentEnvPath = resolve(process.cwd(), "../.env");

@@ -6,6 +6,8 @@
 > 背景：参考 hello-agents trip-planner 项目及网络最佳实践，对研究管道、Provider 层、前端体验进行系统性优化。
 > 实施状态：Research ReAct、高德天气/路线、前端基础体验重设计已落地；Research 结果缓存已移除；LLM fallback、Planner 路线注入、地图、导出、Zustand/React Query 与全局错误过滤器仍为后续目标。
 
+> 架构说明：后续 Agent-First 分层以 `Docs/architecture/3-AGENT_FIRST_ARCHITECTURE.MD` 为当前基线；本文保留 v2 的系统能力与产品边界说明。
+
 ---
 
 ## 1. 架构定位
@@ -57,6 +59,7 @@ backend/
       health/          # 健康检查
       mcp/             # XHS MCP HTTP client
       providers/       # 外部服务抽象（见第4节）
+      agent-core/      # 通用 Agent 生命周期、工具注册与多 Agent 协作
       research/        # ReAct Agent 编排（见第5节）
       planner/         # 行程生成与版本化
       export/          # 行程导出（PDF）
@@ -121,6 +124,8 @@ ResearchAgent
   循环：内部推理 → 结构化 Action → 安全 Observation → ... → Final Sources
   最大轮次：8 轮（可配置）
 ```
+
+Research 基于 `agent-core` 的轻量框架运行：`BaseAgent` 描述决策与领域上下文，`BaseTool` 提供声明式工具契约，`ToolRegistry` 负责注册，`AgentRunner` 执行通用 ReAct 生命周期。未来 Planner 等 Agent 可通过 `AgentOrchestrator` 组成流水线。
 
 LLM 自主决定追加哪些搜索，避免对每个目的地都跑全量 provider。
 

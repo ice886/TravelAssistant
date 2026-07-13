@@ -1,14 +1,14 @@
 import { Module } from "@nestjs/common";
 
-import { AppConfigModule } from "./modules/config/app-config.module";
-import { HealthModule } from "./modules/health/health.module";
+import { AgentCoreModule } from "./modules/agent-core/agent-core.module";
+import { AgentsModule } from "./modules/agents/agents.module";
+import { ApiModule } from "./modules/api/api.module";
+import { InfrastructureModule } from "./modules/infrastructure/infrastructure.module";
 import { McpModule } from "./modules/mcp/mcp.module";
-import { PlannerModule } from "./modules/planner/planner.module";
-import { ProvidersModule } from "./modules/providers/providers.module";
-import { ResearchModule } from "./modules/research/research.module";
-import { TripsModule } from "./modules/trips/trips.module";
+import { PersistenceModule } from "./modules/persistence/persistence.module";
+import { WorkflowsModule } from "./modules/workflows/workflows.module";
 
 @Module({
-  imports: [AppConfigModule, HealthModule, TripsModule, McpModule, ProvidersModule, ResearchModule, PlannerModule]
+  imports: [InfrastructureModule, McpModule, AgentCoreModule, AgentsModule, PersistenceModule, WorkflowsModule, ApiModule]
 })
 export class AppModule {}
