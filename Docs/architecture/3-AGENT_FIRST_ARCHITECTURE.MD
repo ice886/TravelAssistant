@@ -214,4 +214,8 @@ GET    /api/trips/:tripId/itineraries/latest
 POST   /api/trips/:tripId/itineraries
 ```
 
-请求/响应格式完全不变，前端无需修改。
+迁移阶段保留了既有端点；当前契约调整见下述最新行程空状态说明。
+
+生产 Web 容器通过 Nginx 转发 `/api/`。行程生成仍是同步接口，专用代理路由的读取时限必须覆盖 Planner 最坏情况下的两次 LLM 请求；在默认单次 300 秒配置下，代理读取时限为 620 秒。其他 API 保持默认代理时限，避免扩大长连接范围。
+
+`GET /api/trips/:tripId/itineraries/latest` 在 trip 存在但尚无行程版本时返回 HTTP 200 和 `null`；不存在的 trip 仍返回 404。该契约将“资源集合为空”与“trip 不存在”分开，避免前端正常空状态产生失败请求日志。

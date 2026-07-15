@@ -25,18 +25,20 @@ function validateDay(
   index: number,
   allowedSourceIds?: ReadonlySet<string>
 ): ItineraryDay {
-  if (!isRecord(value) || !hasValidDayFields(value)) {
+  const normalizedValue = normalizeDay(value);
+
+  if (!normalizedValue || !hasValidDayFields(normalizedValue)) {
     throw new BadRequestException(`Invalid itinerary day at index ${index}.`);
   }
 
   return {
-    day: value.day,
-    date: value.date,
-    title: value.title,
-    activities: value.activities.map((activity) =>
+    day: normalizedValue.day,
+    date: normalizedValue.date,
+    title: normalizedValue.title,
+    activities: normalizedValue.activities.map((activity) =>
       validateActivity(activity, allowedSourceIds)
     ),
-    notes: validateStringArray(value.notes, "Itinerary day notes must be strings.")
+    notes: validateStringArray(normalizedValue.notes, "Itinerary day notes must be strings.")
   };
 }
 
@@ -44,12 +46,14 @@ function validateActivity(
   value: unknown,
   allowedSourceIds?: ReadonlySet<string>
 ): ItineraryActivity {
-  if (!isRecord(value) || !hasValidActivityFields(value)) {
+  const normalizedValue = normalizeActivity(value);
+
+  if (!normalizedValue || !hasValidActivityFields(normalizedValue)) {
     throw new BadRequestException("Invalid itinerary activity.");
   }
 
   const sourceIds = validateStringArray(
-    value.sourceIds,
+    normalizedValue.sourceIds,
     "Itinerary source ids must be strings."
   );
   const knownSourceIds = allowedSourceIds
@@ -57,13 +61,37 @@ function validateActivity(
     : sourceIds;
 
   return {
-    time: value.time,
-    title: value.title,
-    location: value.location,
-    description: value.description,
-    transport: value.transport,
-    estimatedCost: value.estimatedCost,
+    time: normalizedValue.time,
+    title: normalizedValue.title,
+    location: normalizedValue.location,
+    description: normalizedValue.description,
+    transport: normalizedValue.transport,
+    estimatedCost: normalizedValue.estimatedCost,
     sourceIds: [...new Set(knownSourceIds)]
+  };
+}
+
+function normalizeDay(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    ...value,
+    date: value.date === undefined ? null : value.date,
+    notes: value.notes === undefined ? [] : value.notes
+  };
+}
+
+function normalizeActivity(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    ...value,
+    transport: value.transport === undefined ? "" : value.transport,
+    sourceIds: value.sourceIds === undefined ? [] : value.sourceIds
   };
 }
 
@@ -117,7 +145,7 @@ function hasValidActivityFields(
     isNonEmptyString(value.title) &&
     isNonEmptyString(value.location) &&
     isNonEmptyString(value.description) &&
-    isNonEmptyString(value.transport) &&
+    typeof value.transport === "string" &&
     isNonNegativeNumber(value.estimatedCost) &&
     Array.isArray(value.sourceIds)
   );

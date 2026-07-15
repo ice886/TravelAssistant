@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
 import { DatabaseService } from "../infrastructure/database/database.service";
@@ -8,10 +8,9 @@ import { ItineraryContent, ItineraryVersion, ItineraryVersionRow } from "./plann
 export class ItineraryRepository {
   constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
 
-  async getLatest(tripId: string): Promise<ItineraryVersion> {
+  async getLatest(tripId: string): Promise<ItineraryVersion | null> {
     const result = await this.database.query<ItineraryVersionRow>("SELECT * FROM itinerary_versions WHERE trip_id = $1 ORDER BY version DESC LIMIT 1", [tripId]);
-    if (!result.rows[0]) throw new NotFoundException("Itinerary not found.");
-    return this.toVersion(result.rows[0]);
+    return result.rows[0] ? this.toVersion(result.rows[0]) : null;
   }
 
   async insertVersion(input: { tripId: string; researchRunId: string | null; source: "generated" | "edited"; content: ItineraryContent }): Promise<ItineraryVersion> {

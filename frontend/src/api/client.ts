@@ -263,8 +263,13 @@ export async function generateItinerary(tripId: string): Promise<ItineraryVersio
   return response.json();
 }
 
-export async function getLatestItinerary(tripId: string): Promise<ItineraryVersion> {
+export async function getLatestItinerary(tripId: string): Promise<ItineraryVersion | null> {
   const response = await fetch(`${apiBaseUrl}/trips/${tripId}/itineraries/latest`);
+
+  if (response.status === 404) {
+    return null;
+  }
+
   if (!response.ok) throw new Error((await readErrorMessage(response)) ?? `行程读取失败：${response.status}`);
   return response.json();
 }

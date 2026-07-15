@@ -127,16 +127,39 @@ export class AgentRunner {
   }
 
   private async runGenerate<TContext extends AgentContext>(agent: BaseAgent<TContext>, context: TContext): Promise<AgentResult> {
-    const response = await this.completeJsonWithRetry({
+    const messages = agent.buildMessages(context, []);
+    const request: LlmJsonRequest = {
       schemaName: `${agent.name}_output`,
       schema: agent.getDecisionSchema(),
       temperature: 0.2,
-      messages: agent.buildMessages(context, [])
-    });
-    const artifact = agent.validateGeneration(response.value, context);
-    const progress: AgentProgress = { currentRound: 1, maxRounds: 1, degraded: false, degradationReasons: [], toolCalls: [] };
-    await this.emitProgress(context, progress, [artifact]);
-    return { summary: `${agent.name} 生成完成。`, artifacts: [artifact], progress };
+      messages
+    };
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const response = await this.llm.completeJson({
+          ...request,
+          messages: attempt === 1
+            ? messages
+            : [
+                ...messages,
+                {
+                  role: "user",
+                  content: "上一次输出未通过结构校验。请重新生成完整 JSON，并严格包含 Schema 中每一层的全部必填字段。"
+                }
+              ]
+        });
+        const artifact = agent.validateGeneration(response.value, context);
+        const progress: AgentProgress = { currentRound: 1, maxRounds: 1, degraded: false, degradationReasons: [], toolCalls: [] };
+        await this.emitProgress(context, progress, [artifact]);
+        return { summary: `${agent.name} 生成完成。`, artifacts: [artifact], progress };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("LLM JSON generation failed.");
   }
 
   private async completeJsonWithRetry<TValue>(request: LlmJsonRequest): Promise<LlmJsonResponse<TValue>> {

@@ -29,7 +29,7 @@ export class PlanWorkflow {
     return this.itineraries.insertVersion({ tripId, researchRunId: sources[0].run_id, source: "generated", content: content as never });
   }
 
-  async getLatest(tripId: string): Promise<ItineraryVersion> {
+  async getLatest(tripId: string): Promise<ItineraryVersion | null> {
     await this.trips.getTrip(tripId);
     return this.itineraries.getLatest(tripId);
   }

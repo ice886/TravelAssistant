@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   generateItinerary,
+  getLatestItinerary,
   getLatestResearchRun,
   getResearchSources,
   getXhsLoginQrcode,
@@ -48,6 +49,21 @@ describe("itinerary API", () => {
     vi.stubGlobal("fetch", fetchMock);
     await expect(generateItinerary("trip-1")).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith("/api/trips/trip-1/itineraries/generate", { method: "POST" });
+  });
+
+  it("reads a missing latest itinerary as a successful empty state", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("null", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getLatestItinerary("trip-1")).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith("/api/trips/trip-1/itineraries/latest");
+  });
+
+  it("keeps compatibility with a legacy 404 empty state", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getLatestItinerary("trip-1")).resolves.toBeNull();
   });
 
   it("saves edited content as JSON", async () => {
